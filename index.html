@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<style>
+		*{ color: black; }
+		#test, #test *{
+			padding:5px;
+			border:1px solid red;
+			background: rgb(255,0,0,.2);
+			margin:5px;
+		}
+	</style>
+</head>
+<body >
+
+	<input style="color:${myColor}" type="text" pg-value="myContent">
+	<textarea style="color:${myColor}" pg-value="myContent"></textarea>
+
+	<select name="example" pg-value="mySelect">
+    	<option value="">Other</option>
+    	<option value="A">A</option>
+    	<option value="B">B</option>
+	</select>
+
+	<div id="test">
+		\${myContent} = ${myContent}
+		This is the ${firstLevel} begining
+		<div>${secondLevel}</div>
+		<div>
+			${secondLevel}
+			<div>${thirdLevel} is after ${secondLevel}, so ${thirdLevel} is better</div>
+			<div>Dummy Content</div>
+		</div>
+		...and this is the ${firstLevel} ending
+	</div>
+
+
+	<script src="live-template.js"></script>
+</body>
+</html>
