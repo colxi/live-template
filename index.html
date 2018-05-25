@@ -14,6 +14,12 @@
 </head>
 <body >
 
+<input style="" type="text" pg-value="noModel">
+<div>Value for \${noModel} : ${noModel}</div>
+
+<div>------------------</div>
+
+<div pg-model="myModel">
 	<input style="color:${myColor}" type="text" pg-value="myContent">
 	<textarea style="color:${myColor}" pg-value="myContent"></textarea>
 
@@ -34,7 +40,7 @@
 		</div>
 		...and this is the ${firstLevel} ending
 	</div>
-
+</div>
 
 	<script src="live-template.js"></script>
 </body>

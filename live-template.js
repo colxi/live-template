@@ -2,75 +2,112 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-05-23 15:28:34
+* @Last Modified time: 2018-05-25 23:47:40
 */
 
-/*
-	Addapted from  :
-	https://github.com/tc39/proposal-dynamic-import
-*/
-function importModule(url) {
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    const loaderId = "__tempModuleLoadingVariable" + Math.random().toString(32).substring(2);
-
-    window[loaderId] = function( m ){
-	  resolve( m );
-      delete window[loaderId];
-      script.remove();
-    };
-
-    script.onerror = () => {
-      reject(new Error("Failed to load module script with URL " + url));
-      delete window[loaderId];
-      script.remove();
-    };
-	script.type = "module";
-    script.textContent = `import * as m from "${url}"; window.${loaderId}( m.default )`;
-
-    document.documentElement.appendChild(script);
-  });
-}
-
-_Model = {}
-
-window.Model = new Proxy( _Model , {
-	set : function(obj, modelName, modelContents){
-		//console.log(obj,prop, value)
-
-		// if(value not object error)
-
-
-		obj[modelName] = new Proxy( modelContents , {
-			set : function(obj, prop, value){
-				obj[prop] = value
-				// check in bindings
-				if( bindings.name.indexOf() !== -1){
-
-				}
-			},
-			get : function(obj, prop){
-				return obj[prop]
-			}
-		} );
-
-
-		return obj[modelName];
-
-	},
-	get : function(obj, modelName){
-		return obj[prop]
-	}
-})
-
-//(function(){
-	window._data = {};
+	let modelsPath = './models/';
 
 	let prefix = 'pg';
 
 	let formElements = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'DATALIST', 'OUTPUT' ];
 
 	let templateDelimiters = ['${', '}'];
+
+
+	function loadModel(url){
+		url = modelsPath + url + '.js';
+
+		console.log('importing Model' , url)
+		return new Promise((resolve, reject) => {
+			const script = document.createElement("script");
+			const loaderId = "__tempModuleLoadingVariable" + Math.random().toString(32).substring(2);
+
+			window[loaderId] = function( m ){
+				resolve( m );
+				delete window[loaderId];
+				script.remove();
+			};
+
+			script.onerror = () => {
+				reject(new Error("Failed to load module script with URL " + url));
+				delete window[loaderId];
+				script.remove();
+			};
+
+			script.type = "module";
+			script.textContent = `import * as m from "${url}"; window.${loaderId}( m.default )`;
+
+			document.documentElement.appendChild(script);
+		});
+	}
+
+
+
+	let newModel = function(modelName){
+		Model[modelName] = {};
+		return Model[modelName];
+	}
+
+
+
+
+
+	// _Model is used intern ally to acces the Models without triggering thhr traps
+	// of the Model proxy
+	_Model = {};
+	// Model is a proxy wich grants acces to the models stored internally in _Model
+	window.Model = new Proxy( _Model , {
+		set : function(obj, modelName, modelContents){
+			// if(value not object error)
+
+
+			obj[modelName] = new Proxy( modelContents , {
+				set : function(model, tokenName, value){
+					model[tokenName] = value
+					// check if exist any binded element wich value has to be updated
+					//
+					// iterate each registered binding for provided token, if exist
+					// an entry in the binding names for the current binding name
+					if( bindings.names.hasOwnProperty(tokenName) ){
+						bindings.names[tokenName].forEach( element =>{
+							// verificate that binded Element is still part of DOM
+							if ( !garbageCollector(element) ) return;
+
+							if(element.nodeType === element.TEXT_NODE){
+								// if element is a textNode update it...
+								element.textContent = applyStringTokens( bindings.elements.get(element), model) ;
+							}else{
+								// if it's not a textNode, asume bindings are set
+								// in element attributes
+								let attr_list = bindings.elements.get(element);
+								for(let attr in attr_list){
+									if( isBinderAttribute(attr) ){
+										element.value = model[attr_list[attr]]
+									}else{
+										if( !attr_list.hasOwnProperty(attr) ) continue;
+										if(attr !== 'textNode')  element.setAttribute( attr,  applyStringTokens( attr_list[attr], model ) );
+									}
+								}
+							}
+						});
+					}
+					return true;
+				},
+				get : function(model, tokenName){
+					return model[tokenName]
+				}
+			} );
+
+
+			return obj[modelName];
+
+		},
+		get : function(obj, modelName){
+			return obj[modelName]
+		}
+	})
+
+
 
 	let expresion = {
 		tokenMatch : /(?<!\\)\${[^{}]*}/g,
@@ -170,9 +207,19 @@ window.Model = new Proxy( _Model , {
 	let getBindingModel = function(element){
 		if(element.nodeType === element.TEXT_NODE) element = element.parentNode;
 		let model = element.closest('['+prefix+'-model]');
-		if( model === null) model = window;
-		else{}
-		return model;
+
+		if( model === null){
+			console.log('element has no related Model, asign _root')
+			if( !Model.hasOwnProperty('_root') ) Model._root = {}
+			bindingModel = Model._root; // window;
+		}else{
+			modelName = model.getAttribute(prefix+'-model');
+			//console.log(model, modelName)
+			Model[modelName] = Model[modelName] || {};
+			bindingModel = Model[modelName]
+		}
+
+		return bindingModel;
 	};
 
 	/**
@@ -217,7 +264,7 @@ window.Model = new Proxy( _Model , {
 			let search = new RegExp( expresion.tokenReplace.replace('__TOKEN__', token) ,"g");
 			// find te value of the Binding token, in the provided model, and
 			// replace every token reference in the string, with it
-			string = string.replace(search , (model._data[token] || ''));
+			string = string.replace(search , (model[token] || ''));
 		})
 		// done! return parsed String
 		return string;
@@ -232,9 +279,13 @@ window.Model = new Proxy( _Model , {
 		// iterate each attribute of the element looking for templating tokens,
 		// or attribute  binders ...
 		let tokenizedAttributes = {};
+
+		let model;
+
 		for(let attr in element.attributes){
 			// block if attr is not a property
 			if( !element.attributes.hasOwnProperty(attr) ) continue;
+
 			let tokens;
 			if( isBinderAttribute(element.attributes[attr].name) ){
 				tokens = [ element.attributes[attr].value ];
@@ -244,14 +295,16 @@ window.Model = new Proxy( _Model , {
 			}
 			// iterate all tokens
 			tokens.forEach( tokenName=>{
+				model = model || getBindingModel(element);
+
 				// register the attribute name and tokenized value
 				tokenizedAttributes[ element.attributes[attr].name ] = element.attributes[attr].value;
 				// bind the element with the token
-				bind(element, tokenName);
+				bind(element, tokenName, model);
 
 				if(element.attributes[attr].name === 'pg-value'){
 					element.addEventListener("input", function(e) {
-						window[tokenName] = e.target.value;
+						model[tokenName] = e.target.value;
 					});
 				}
 			})
@@ -270,10 +323,12 @@ window.Model = new Proxy( _Model , {
 				let tokens = getStringTokens(childNode.nodeValue, true);
 				// iterate each token and perform the required binding
 				tokens.forEach( tokenName=>{
+					model = model || getBindingModel(element);
+
 					// register the textNode in the bindings registry
 					bindings.elements.set(childNode, childNode.nodeValue );
 					// bind the element with the tokem
-					bind(childNode, tokenName);
+					bind(childNode, tokenName, model);
 				})
 		    }
 		});
@@ -283,56 +338,32 @@ window.Model = new Proxy( _Model , {
 	}
 
 
-	let bind = function(element, tokenName){
+	let bind = function(element, tokenName, model){
 		// block if element is not a HTMLElement intance
-		//console.log(element,tokenName)
 		if( !(element instanceof HTMLElement) && !(element instanceof Node) ) throw new Error('HTMLElement has to be provided');
 		// block if no binding name has been provided
 		if( tokenName.trim() === undefined ) throw new Error('Imposible to perform binding. Binding name not provided in Element');
 
-		// get the container model
-		let model = getBindingModel(element);
+		// get the container model, if model was not provided
+		if( !model) model = getBindingModel(element);
+
 		// if the tokenName has not been registered previously, generate an empty entry
 		if( !bindings.names.hasOwnProperty(tokenName) ) bindings.names[tokenName] = [];
 		// link the element with the tokenName in the bindings registry
 		bindings.names[tokenName].push(element);
 
 		// TODO: add an observer to the element to track changes in its structure/bindings
-		// TODO : what happens when model , already has a variable with the tokenName?
 
-		//console.log("the model is", model)
-		// Create the binded variable in the corresponding model
-		if( !model.hasOwnProperty(tokenName) ){
-			Object.defineProperty(model, tokenName, {
+		// When item is not linked with any Model (Model_root) create a
+		// variable acces in the 'window' Object, to simulate global variable
+		if( model === _Model._root && !window.hasOwnProperty(tokenName) ){
+			console.log('is a global')
+			Object.defineProperty(window, tokenName, {
 				set: function(value) {
-					// store the ew provided value
-					model._data[tokenName] = value;
-					// iterate each registered binding for provided token
-					bindings.names[tokenName].forEach( element =>{
-						// verificate that binded Element is still part of DOM
-						if ( !garbageCollector(element) ) return;
-
-						if(element.nodeType === element.TEXT_NODE){
-							// if element is a textNode update it...
-							element.textContent = applyStringTokens( bindings.elements.get(element), model) ;
-						}else{
-							// if it's not a textNode, asume bindings are set
-							// in element attributes
-							let attr_list = bindings.elements.get(element);
-							for(let attr in attr_list){
-								if( isBinderAttribute(attr) ){
-									element.value = model[attr_list[attr]]
-								}else{
-									if( !attr_list.hasOwnProperty(attr) ) continue;
-									if(attr !== 'textNode')  element.setAttribute( attr,  applyStringTokens( attr_list[attr], model ) );
-								}
-							}
-						}
-					});
-					//x.value = value;
+					Model._root[tokenName] = value
 				},
 				get: function() {
-					return model._data[tokenName]
+					return Model._root[tokenName]
 				}
 			});
 		}
