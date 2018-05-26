@@ -18,10 +18,11 @@
 <input style="" type="text" pg-value="noModel">
 <div>Value for \${noModel} : ${noModel}</div>
 
+
 <div>------------------</div>
 
 <div pg-model="'myModel'" pg-show="myCondition">
-	<input style="color:${myColor}" type="text" pg-value="myModel.test.myContent">
+	<input id="inputId" style="color:${myColor}" type="text" pg-value="myModel.test.myContent">
 	<textarea style="color:${myModel.myColor}" pg-value="myModel.test.myContent"></textarea>
 
 	<select name="example" pg-value="myModel.mySelect">
@@ -40,6 +41,18 @@
 			<div>Dummy Content</div>
 		</div>
 		...and this is the ${myModel.firstLevel} ending
+	</div>
+
+	<div id="test">
+		\\${myModel.test.myContent} = \${myModel.test.myContent}
+		This is the \${myModel.test.firstLevel} begining
+		<div>\${myModel.secondLevel}</div>
+		<div>
+			\${myModel.secondLevel}
+			<div>\${thirdLevel} is after \${myModel.secondLevel}, so \${myModel.thirdLevel} is better</div>
+			<div>Dummy Content</div>
+		</div>
+		...and this is the \${myModel.firstLevel} ending
 	</div>
 </div>
 
