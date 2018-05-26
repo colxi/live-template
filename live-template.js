@@ -2,16 +2,30 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-05-25 23:47:40
+* @Last Modified time: 2018-05-26 06:01:25
 */
 
+
+// inject CSS
+(function(){
+	let css = '[__hidden__]{ display : none; }';
+	let style = document.createElement('style');
+	style.type = 'text/css';
+	if (style.styleSheet)  style.styleSheet.cssText = css;
+	else style.appendChild(document.createTextNode(css));
+	document.getElementsByTagName('head')[0].appendChild(style);
+})();
+
+
+
 	let modelsPath = './models/';
-
 	let prefix = 'pg';
-
-	let formElements = ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'DATALIST', 'OUTPUT' ];
-
 	let templateDelimiters = ['${', '}'];
+
+	let expresion = {
+		tokenMatch :   /(?<!\\)\${[^{}]*}/g,
+		tokenReplace : '(?<!\\\\)\\${\\s*__TOKEN__\\s*}'
+	}
 
 
 	function loadModel(url){
@@ -41,94 +55,107 @@
 		});
 	}
 
-
-
 	let newModel = function(modelName){
-		Model[modelName] = {};
+		Model[modelName] = Model[modelName] || {};
 		return Model[modelName];
 	}
 
 
+	function createModel( modelContents, keyPath){
+		console.log(keyPath)
+		let level =  new Proxy( {} , {
+			set : function(model, tokenName, value){
 
+				// if value to SET is an Object...
+				if( value instanceof Object ){
+					// and property in Model already exist and is an object, mix them...
+					if( model[tokenName] instanceof Object ) Object.assign( model[tokenName] , value);
+					// if its not an object, generate another Level in the proxy
+					else model[tokenName] = createModel(value , keyPath+tokenName+'.');
+					// done!
+					return true;
+				}
 
+				model[tokenName] = value;
+				// check if exist any binded element wich value has to be updated
+				//
+				// iterate each registered binding for provided token, if exist
+				// an entry in the binding names for the current binding name
 
-	// _Model is used intern ally to acces the Models without triggering thhr traps
-	// of the Model proxy
-	_Model = {};
-	// Model is a proxy wich grants acces to the models stored internally in _Model
-	window.Model = new Proxy( _Model , {
-		set : function(obj, modelName, modelContents){
-			// if(value not object error)
+				// bindingTables to Global Model (_root) are stored without the _root
+				// keypath prefix. Remove it.
+				if(keyPath === '_root.') keyPath = '';
+				if( bindingTables.names.hasOwnProperty(keyPath+tokenName) ){
+					bindingTables.names[keyPath+tokenName].forEach( element =>{
+						// verificate that binded Element is still part of DOM
+						if ( !garbageCollector(element) ) return;
 
-
-			obj[modelName] = new Proxy( modelContents , {
-				set : function(model, tokenName, value){
-					model[tokenName] = value
-					// check if exist any binded element wich value has to be updated
-					//
-					// iterate each registered binding for provided token, if exist
-					// an entry in the binding names for the current binding name
-					if( bindings.names.hasOwnProperty(tokenName) ){
-						bindings.names[tokenName].forEach( element =>{
-							// verificate that binded Element is still part of DOM
-							if ( !garbageCollector(element) ) return;
-
-							if(element.nodeType === element.TEXT_NODE){
-								// if element is a textNode update it...
-								element.textContent = applyStringTokens( bindings.elements.get(element), model) ;
-							}else{
-								// if it's not a textNode, asume bindings are set
-								// in element attributes
-								let attr_list = bindings.elements.get(element);
-								for(let attr in attr_list){
-									if( isBinderAttribute(attr) ){
-										element.value = model[attr_list[attr]]
-									}else{
-										if( !attr_list.hasOwnProperty(attr) ) continue;
-										if(attr !== 'textNode')  element.setAttribute( attr,  applyStringTokens( attr_list[attr], model ) );
-									}
+						if(element.nodeType === element.TEXT_NODE){
+							// if element is a textNode update it...
+							element.textContent = applyStringTokens( bindingTables.elements.get(element), model) ;
+						}else{
+							// if it's not a textNode, asume bindingTables are set
+							// in element attributes
+							let attr_list = bindingTables.elements.get(element);
+							for(let attr in attr_list){
+								//
+								if( isBinderAttribute(attr) ){
+									_model = getModelAndBindName( attr_list[attr] );
+									let bindingFn = attr.split('-')[1];
+									binders[bindingFn].subscribe(element,_model.context,_model.key);
+								}else{
+									if( !attr_list.hasOwnProperty(attr) ) continue;
+									if(attr !== 'textNode')  element.setAttribute( attr,  applyStringTokens( attr_list[attr], model ) );
 								}
 							}
-						});
-					}
-					return true;
-				},
-				get : function(model, tokenName){
-					return model[tokenName]
+						}
+					});
 				}
-			} );
 
+				return true;
+			},
+			get : function(model, tokenName){
+				return model[tokenName]
+			}
+		} );
 
-			return obj[modelName];
+		for(let p in modelContents){
+			if( !modelContents.hasOwnProperty(p) ) continue;
 
+			if( modelContents[p] instanceof Object ){
+				console.log('level found')
+				level[p] = createModel(modelContents[p] , keyPath+p+'.');
+			}
+			else level[p] = modelContents[p];
+		}
+		return level;
+	}
+
+	// Model is a proxy wich grants acces to the models stored internally
+	Model = new Proxy( {} , {
+		/**
+		 * Generate a new Model
+		 */
+		set : function(obj, modelName, modelContents){
+			// if value not object throw an error
+			if( typeof modelContents !== 'object') throw new Error('new Model must be an object!')
+			//
+			if(obj[modelName]){
+				Object.assign( obj[modelName], modelContents );
+			}else obj[modelName] = createModel(modelContents, modelName+'.');
+			return true;
 		},
+		/**
+		 * Return Model
+		 */
 		get : function(obj, modelName){
-			return obj[modelName]
+			return obj[modelName];
 		}
 	})
 
 
 
-	let expresion = {
-		tokenMatch : /(?<!\\)\${[^{}]*}/g,
-		tokenReplace : '(?<!\\\\)\\${\\s*__TOKEN__\\s*}'
-	}
-
-	let binders = {
-		default : {
-
-		},
-		value : {
-
-			update : function(element, value){
-				console.log('updating!')
-				element.value = value;
-			},
-
-		}
-	}
-
-	let bindings = {
+	let bindingTables = {
 		// Contains a list of bindingNames, with an array linked containing
 		// all the Elements where the binding has been linked. This array
 		// is not weak referenced (cause needs to be iterated), so is
@@ -183,7 +210,7 @@
 	 */
 	let removeTemplateDelimiters = function( token ){
 		//
-		return token.trim().slice(2,-1).trim();
+		return token.trim().slice(templateDelimiters[0].length, ( 0-templateDelimiters[1].length ) ).trim();
 	}
 
 
@@ -199,28 +226,6 @@
 		return ( attrName.substring(0, (prefix.length+1)) == prefix+"-") ? attrName.substring(3) : false;
 	}
 
-	/**
-	 * [getBindingModel description]
-	 * @param  {[type]} element [description]
-	 * @return {[type]}         [description]
-	 */
-	let getBindingModel = function(element){
-		if(element.nodeType === element.TEXT_NODE) element = element.parentNode;
-		let model = element.closest('['+prefix+'-model]');
-
-		if( model === null){
-			console.log('element has no related Model, asign _root')
-			if( !Model.hasOwnProperty('_root') ) Model._root = {}
-			bindingModel = Model._root; // window;
-		}else{
-			modelName = model.getAttribute(prefix+'-model');
-			//console.log(model, modelName)
-			Model[modelName] = Model[modelName] || {};
-			bindingModel = Model[modelName]
-		}
-
-		return bindingModel;
-	};
 
 	/**
 	 * getStringTokens(): Return an array with all the tokens found in the
@@ -246,6 +251,28 @@
 		return tokensCleaned;
 	}
 
+
+	getModelAndBindName= function(s){
+		keyPath = s.split(".");
+		bindName = keyPath.splice(-1,1);
+
+		let obj = {}
+
+		if( keyPath.length === 0 ){
+			if( !Model['_root'] ) Model['_root']  = {};
+			obj = { context : Model['_root'] , key : bindName[0] };
+		}else{
+			let m = Model;
+			for(let i = 0; i<keyPath.length;i++){
+				if( typeof m[ keyPath[i] ] === 'undefined' ) m[ keyPath[i] ] = {};
+				m = m[ keyPath[i] ];
+			}
+			obj = { context : m , key : bindName[0] }
+		}
+		return obj;
+	};
+
+
 	/**
 	 * [applyStringTokens description]
 	 *
@@ -254,17 +281,17 @@
 	 *
 	 * @return {[type]}        [description]
 	 */
-	let applyStringTokens = function(string, model){
+	let applyStringTokens = function(string /*, model */){
 		// retrieve all the tokens container in the string
 		let tokens = getStringTokens( string, true );
 		// iterate each token
 		tokens.forEach( token=>{
+			let model = getModelAndBindName(token);
 			// generate the search regular expresion with the current token
-
 			let search = new RegExp( expresion.tokenReplace.replace('__TOKEN__', token) ,"g");
 			// find te value of the Binding token, in the provided model, and
 			// replace every token reference in the string, with it
-			string = string.replace(search , (model[token] || ''));
+			string = string.replace(search , (model.context[model.key] || ''));
 		})
 		// done! return parsed String
 		return string;
@@ -280,7 +307,6 @@
 		// or attribute  binders ...
 		let tokenizedAttributes = {};
 
-		let model;
 
 		for(let attr in element.attributes){
 			// block if attr is not a property
@@ -295,22 +321,29 @@
 			}
 			// iterate all tokens
 			tokens.forEach( tokenName=>{
-				model = model || getBindingModel(element);
+				//model = model || getBindingModel(element);
+
+				let model = getModelAndBindName(tokenName);
+
 
 				// register the attribute name and tokenized value
 				tokenizedAttributes[ element.attributes[attr].name ] = element.attributes[attr].value;
 				// bind the element with the token
-				bind(element, tokenName, model);
+				bind(element, tokenName);
 
-				if(element.attributes[attr].name === 'pg-value'){
-					element.addEventListener("input", function(e) {
-						model[tokenName] = e.target.value;
-					});
+
+				let binderName = element.attributes[attr].name.split('-');
+				let binderPrefix = binderName[0];
+				binderName = binderName[1];
+				if(binderPrefix === prefix){
+					if( !binders.hasOwnProperty(binderName) ) binders.default.bind(element,model.context, model.key,binderName);
+					else binders[binderName].bind(element,model.context, model.key);
 				}
+
 			})
 		}
 		// if any attribute has been found, include it/them to the binding registry
-		if( Object.keys(tokenizedAttributes).length ) bindings.elements.set(element,tokenizedAttributes );
+		if( Object.keys(tokenizedAttributes).length ) bindingTables.elements.set(element,tokenizedAttributes );
 
 
 		// iterate the text Nodes looking for templating tokens
@@ -323,12 +356,14 @@
 				let tokens = getStringTokens(childNode.nodeValue, true);
 				// iterate each token and perform the required binding
 				tokens.forEach( tokenName=>{
-					model = model || getBindingModel(element);
+					// model = model || getBindingModel(element);
+					let model = getModelAndBindName(tokenName);
 
-					// register the textNode in the bindings registry
-					bindings.elements.set(childNode, childNode.nodeValue );
+
+					// register the textNode in the bindingTables registry
+					bindingTables.elements.set(childNode, childNode.nodeValue );
 					// bind the element with the tokem
-					bind(childNode, tokenName, model);
+					bind(childNode, tokenName);
 				})
 		    }
 		});
@@ -338,32 +373,32 @@
 	}
 
 
-	let bind = function(element, tokenName, model){
+	let bind = function(element, tokenName){
 		// block if element is not a HTMLElement intance
 		if( !(element instanceof HTMLElement) && !(element instanceof Node) ) throw new Error('HTMLElement has to be provided');
 		// block if no binding name has been provided
 		if( tokenName.trim() === undefined ) throw new Error('Imposible to perform binding. Binding name not provided in Element');
 
-		// get the container model, if model was not provided
-		if( !model) model = getBindingModel(element);
-
 		// if the tokenName has not been registered previously, generate an empty entry
-		if( !bindings.names.hasOwnProperty(tokenName) ) bindings.names[tokenName] = [];
-		// link the element with the tokenName in the bindings registry
-		bindings.names[tokenName].push(element);
+		if( !bindingTables.names.hasOwnProperty(tokenName) ) bindingTables.names[tokenName] = [];
+		// link the element with the tokenName in the bindingTables registry
+		bindingTables.names[tokenName].push(element);
 
-		// TODO: add an observer to the element to track changes in its structure/bindings
+		// get the container model, if model was not provided
+		let model = getModelAndBindName(tokenName);
+		// TODO: add an observer to the element to track changes in its structure/bindingTables
 
 		// When item is not linked with any Model (Model_root) create a
 		// variable acces in the 'window' Object, to simulate global variable
-		if( model === _Model._root && !window.hasOwnProperty(tokenName) ){
-			console.log('is a global')
-			Object.defineProperty(window, tokenName, {
+		if( model.context === Model._root && !window.hasOwnProperty(model.key) ){
+			// if variable already exist in window, delete it and assign again ?
+			//
+			Object.defineProperty(window, model.key, {
 				set: function(value) {
-					Model._root[tokenName] = value
+					Model._root[model.key] = value
 				},
 				get: function() {
-					return Model._root[tokenName]
+					return Model._root[model.key]
 				}
 			});
 		}
@@ -394,6 +429,52 @@
 		//
 	};
 
+
+
+	let binders = {
+		// pg-value
+		value : {
+			bind : function(element,model,key){
+				element.addEventListener("input", e=>{
+					this.publish(element, model , key, e.target.value)
+				});
+			},
+			unbind : function(){},
+			publish : function(element, model, key, value){
+				// change in DOM must be setted to Model Object
+				console.log('pg-value publish BINDER: publishing!',model,key,value)
+				model[key] = value;
+			},
+			subscribe : function(element, model, key){
+				// change in object must be reflected in DOM
+				console.log('pg-value update BINDER: subscribe!')
+				element.value = model[ key ] || '' ;
+			},
+		},
+		show : {
+			bind : function(element,model,key){
+			},
+			unbind : function(){},
+			publish : function(element, model, key, value){},
+			subscribe : function(element, model, key){
+				if( model[key] ) element.removeAttribute('__hidden__');
+				else element.setAttribute('__hidden__',true);
+			},
+		},
+		model : {
+			bind : function(element,model,key){},
+			unbind : function(){},
+			publish : function(element, model, key, value){},
+			subscribe : function(element, model, key){},
+		},
+		each : {},
+		// pg-unknown :  undeclared binders perform default action...
+		default : {
+			bind: function(element,model,key,binderName){
+				console.log('DEFAULT BINDER bind():',element,model,key,binderName)
+			}
+		}
+	}
 
 
 	document.querySelectorAll('*').forEach( e => parseElement(e) );

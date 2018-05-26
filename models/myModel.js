@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 16:25:55
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-05-25 23:10:49
+* @Last Modified time: 2018-05-26 02:14:55
 */
 
 
@@ -10,7 +10,9 @@
 
 
 
-
+// bug
+// when change myColor removes the content of myModel.myContent input elementy
+//
 
 let model = newModel('myModel' , {});
 

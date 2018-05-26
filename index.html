@@ -3,13 +3,14 @@
 <head>
 	<title></title>
 	<style>
-		*{ color: black; }
+
 		#test, #test *{
 			padding:5px;
 			border:1px solid red;
 			background: rgb(255,0,0,.2);
 			margin:5px;
 		}
+
 	</style>
 </head>
 <body >
@@ -19,26 +20,26 @@
 
 <div>------------------</div>
 
-<div pg-model="myModel">
-	<input style="color:${myColor}" type="text" pg-value="myContent">
-	<textarea style="color:${myColor}" pg-value="myContent"></textarea>
+<div pg-model="'myModel'" pg-show="myCondition">
+	<input style="color:${myColor}" type="text" pg-value="myModel.test.myContent">
+	<textarea style="color:${myModel.myColor}" pg-value="myModel.test.myContent"></textarea>
 
-	<select name="example" pg-value="mySelect">
+	<select name="example" pg-value="myModel.mySelect">
     	<option value="">Other</option>
     	<option value="A">A</option>
     	<option value="B">B</option>
 	</select>
 
 	<div id="test">
-		\${myContent} = ${myContent}
-		This is the ${firstLevel} begining
-		<div>${secondLevel}</div>
+		\${myModel.test.myContent} = ${myModel.test.myContent}
+		This is the ${myModel.test.firstLevel} begining
+		<div>${myModel.secondLevel}</div>
 		<div>
-			${secondLevel}
-			<div>${thirdLevel} is after ${secondLevel}, so ${thirdLevel} is better</div>
+			${myModel.secondLevel}
+			<div>${thirdLevel} is after ${myModel.secondLevel}, so ${myModel.thirdLevel} is better</div>
 			<div>Dummy Content</div>
 		</div>
-		...and this is the ${firstLevel} ending
+		...and this is the ${myModel.firstLevel} ending
 	</div>
 </div>
 
