@@ -2,9 +2,9 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-05-31 04:07:56
+* @Last Modified time: 2018-06-01 01:19:25
 */
-
+'use strict';
 
 // inject CSS
 (function(){
@@ -101,7 +101,7 @@
 							for(let attr in attr_list){
 								//
 								if( Util.isBinderAttribute(attr) ){
-									_model = Util.resolveBindingKeyPath( attr_list[attr] );
+									let _model = Util.resolveBindingKeyPath( attr_list[attr] );
 									let bindingFn = attr.split('-')[1];
 									binders[bindingFn].subscribe(element,_model.context,_model.key , _model.context[_model.key]);
 								}else{
@@ -126,7 +126,7 @@
 	}
 
 	// _Model is a proxy wich grants acces to the models stored internally
-	_Model = new Proxy( {} , {
+	let _Model = new Proxy( {} , {
 		set : function(obj, modelName, modelContents){
 			// if value is not an Object throw an error
 			if( !(modelContents instanceof Object) ) throw new Error('new _Model must be an object!')
@@ -282,9 +282,9 @@
 		 */
 		resolveBindingKeyPath( keyPath ){
 			// split the string in the diferent path levels
-			parts = keyPath.split(".");
+			let parts = keyPath.split(".");
 			// extract the last item (asume is the property)
-			bindName = ( parts.splice(-1,1) )[0];
+			let bindName = ( parts.splice(-1,1) )[0];
 
 			let result = {}
 
@@ -359,16 +359,16 @@
 
 
 	// Callback function to execute when mutations are observed
-	var onDOMChange = function(mutationsList) {
-	    for(var mutation of mutationsList) {
-	        if (mutation.type == 'childList') {
+	let onDOMChange = function(mutationsList) {
+	    for(let mutation of mutationsList) {
+	        if (mutation.type !== 'childList') continue;
 
-	            // if Nodes have been removel
-	            console.log('delete collection ',mutation.removedNodes)
-	            mutation.removedNodes.forEach( e=>{
+            // first process REMOVED NODES
+            mutation.removedNodes.forEach( e=>{
 
-	            	if( e.nodeType === Node.TEXT_NODE ){
-	            		let tokens = Util.getTextNodeTokens(e,true);
+            	switch( e.nodeType ){
+            		case Node.TEXT_NODE : {
+            			let tokens = Util.getTextNodeTokens(e,true);
 
 	            		tokens.forEach( tokenName=>{
 		            		if( bindingTables.names.hasOwnProperty( tokenName ) ){
@@ -380,71 +380,76 @@
 								}
 							}
 						});
-
-	            		return;
+	            		break;
 	            	}
+            		case Node.ELEMENT_NODE : {
+            			//console.log('delete ', typeof e, ,  e)
+		            	// get all children as Array instead of NodeList
+		            	// include in the array the Deleted element
+		            	let all = Array.from( e.querySelectorAll("*") );
+		            	all.push(e);
 
-	            	//console.log('delete ', typeof e, ,  e)
-	            	// get all children as Array instead of NodeList
-	            	// include in the array the Deleted element
-	            	let all = Array.from( e.querySelectorAll("*") );
-	            	all.push(e);
+		            	all.forEach( child =>{
+		            		// inspect Attributes
+		            		let tokens = [];
 
-	            	all.forEach( child =>{
-	            		// inspect Attributes
-	            		let tokens = [];
+		            		// ATTRIBUTES SEARCH (in template)
+		            		if( bindingTables.elements.has(child) ){
+								// get all stringTokens in current Element Attribute Template
+	            				let attributes = bindingTables.elements.get(child);
+	            				for(let attr in attributes){
+	            					if( !attributes.hasOwnProperty(attr) ) continue;
+	            					let currentAttributeTokens = Util.getStringTokens(  attributes[attr] , true ) ;
 
-	            		// ATTRIBUTES SEARCH (in template)
-	            		if( bindingTables.elements.has(child) ){
-							// get all stringTokens in current Element Attribute Template
-            				let attributes = bindingTables.elements.get(child);
-            				for(let attr in attributes){
-            					if( !attributes.hasOwnProperty(attr) ) continue;
-            					let currentAttributeTokens = Util.getStringTokens(  attributes[attr] , true ) ;
-
-								if( Util.isBinderAttribute( attr ) && !currentAttributeTokens.lenght ){
-									// if value is quoted, call binder[bindername].subscribte
-									// with the quoted value
-									let v = attributes[attr].trim();
-									if( v.slice(0,1) === '\'' && v.slice(-1) === '\'') continue;
-									// if is a Binder Attribute (eg: pg-model), extract the value
-									else currentAttributeTokens = [ v ];
+									if( Util.isBinderAttribute( attr ) && !currentAttributeTokens.lenght ){
+										// if value is quoted, call binder[bindername].subscribte
+										// with the quoted value
+										let v = attributes[attr].trim();
+										if( v.slice(0,1) === '\'' && v.slice(-1) === '\'') continue;
+										// if is a Binder Attribute (eg: pg-model), extract the value
+										else currentAttributeTokens = [ v ];
+									}
+	            					tokens = tokens.concat( currentAttributeTokens );
+	            				}
+		            		}
+		            		tokens.forEach( tokenName=>{
+								if( bindingTables.names.hasOwnProperty( tokenName ) ){
+									let index = bindingTables.names[tokenName].indexOf(child);
+									if(index !== -1)  bindingTables.names[tokenName].splice(index, 1);
+									if( !bindingTables.names[tokenName].length ){
+										bindingTables.names[tokenName] = null;
+										delete bindingTables.names[tokenName];
+									}
 								}
-            					tokens = tokens.concat( currentAttributeTokens );
-            				}
-	            		}
-	            		tokens.forEach( tokenName=>{
-							if( bindingTables.names.hasOwnProperty( tokenName ) ){
-								let index = bindingTables.names[tokenName].indexOf(child);
-								if(index !== -1)  bindingTables.names[tokenName].splice(index, 1);
-								if( !bindingTables.names[tokenName].length ){
-									bindingTables.names[tokenName] = null;
-									delete bindingTables.names[tokenName];
+							})
+
+							// TEXZTCONTENXT SEARCH (TEMPLATE)
+		            		Util.forEachTextNodeToken(child, (childTextNode, tokenName) =>{
+								if( bindingTables.names.hasOwnProperty( tokenName ) ){
+									let index = bindingTables.names[tokenName].indexOf(childTextNode);
+									if (index !== -1)  bindingTables.names[tokenName].splice(index, 1);
+									if( !bindingTables.names[tokenName].length ){
+										bindingTables.names[tokenName] = null;
+										delete bindingTables.names[tokenName];
+									}
 								}
-							}
-						})
+							}, true)
 
-						// TEXZTCONTENXT SEARCH (TEMPLATE)
-	            		Util.forEachTextNodeToken(child, (childTextNode, tokenName) =>{
-							if( bindingTables.names.hasOwnProperty( tokenName ) ){
-								let index = bindingTables.names[tokenName].indexOf(childTextNode);
-								if (index !== -1)  bindingTables.names[tokenName].splice(index, 1);
-								if( !bindingTables.names[tokenName].length ){
-									bindingTables.names[tokenName] = null;
-									delete bindingTables.names[tokenName];
-								}
-							}
-						}, true)
+		            	});
+		            	break;
+		            }
+            		default : {
+            			console.warn('onDOMChange() : Unimplemented type of Node : ' + e.nodeType.toString() );
+            		}
+            	}
+            });
 
-	            	});
-	            });
-
-	            // added nodes
-	            mutation.addedNodes.forEach( e=>{
-	            	parseElement(e);
-	            });
-	        }
+            // CONTINUE WITH NEW ADDED NODES
+            mutation.addedNodes.forEach( e=>{
+            	parseElement(e);
+            });
 	    }
+	    // done !
 	};
 
 
