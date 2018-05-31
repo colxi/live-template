@@ -11,51 +11,55 @@
 			margin:5px;
 		}
 
+		#test2, #test2 *{
+			border:1px solid green;
+			background: rgb(0,255,0,.2);
+		}
+
 	</style>
 </head>
 <body >
 
-<input style="" type="text" pg-value="noModel">
-<div>Value for \${noModel} : ${noModel}</div>
+<div>
+	<input style="" type="text" pg-value="noModel">
+	<div>Value for \${noModel} : ${noModel}</div>
 
 
-<div>------------------</div>
+	<div>------------------</div>
+	<input type="button" value="Load MyModel" pg-on-click="myModel.loadModel">
+	<input type="button" value="Delete Block" pg-on-click="myModel.deleteBlock">
+	<input type="button" value="Load View" pg-on-click="myModel.loadView">
 
-<div pg-model="'myModel'" pg-show="myCondition">
-	<input id="inputId" style="color:${myColor}" type="text" pg-value="myModel.test.myContent">
-	<textarea style="color:${myModel.myColor}" pg-value="myModel.test.myContent"></textarea>
-
-	<select name="example" pg-value="myModel.mySelect">
-    	<option value="">Other</option>
-    	<option value="A">A</option>
-    	<option value="B">B</option>
-	</select>
-
-	<div id="test">
-		\${myModel.test.myContent} = ${myModel.test.myContent}
-		This is the ${myModel.test.firstLevel} begining
-		<div>${myModel.secondLevel}</div>
+	<div id="container" pg-select="myModel.container" pg-model="'myModel'" pg-show="myCondition">
+		<!--
 		<div>
-			${myModel.secondLevel}
-			<div>${thirdLevel} is after ${myModel.secondLevel}, so ${myModel.thirdLevel} is better</div>
-			<div>Dummy Content</div>
+			<input id="inputId" style="color:${myColor}" type="text" pg-value="myModel.Comment">
+			<textarea style="color: ${myModel.myColor}" pg-value="myModel.Comment"></textarea>
+			<select name="example" pg-value="myModel.mySelect">
+		    	<option value="">Other</option>
+		    	<option value="A">A</option>
+		    	<option value="B">B</option>
+			</select>
 		</div>
-		...and this is the ${myModel.firstLevel} ending
+		-->
+		${currentStatus}
+		<div id="test">
+			Member ID : ${myModel.ID} ( ${myModel.type.profile} )
+			<div>${myModel.secondName}, ${myModel.firstName}</div>
+			<div>
+				Adress :
+				<div> ${myModel.Address.Number} th, ${myModel.Address.Street} </div>
+				<div>${myModel.Address.City} , ${myModel.Address.State} </div>
+			</div>
+			<div>Comments : ${myModel.Comment} </div>
+			The user is currently ${currentStatus}
+		</div>
+
 	</div>
 
-	<div id="test">
-		\\${myModel.test.myContent} = \${myModel.test.myContent}
-		This is the \${myModel.test.firstLevel} begining
-		<div>\${myModel.secondLevel}</div>
-		<div>
-			\${myModel.secondLevel}
-			<div>\${thirdLevel} is after \${myModel.secondLevel}, so \${myModel.thirdLevel} is better</div>
-			<div>Dummy Content</div>
-		</div>
-		...and this is the \${myModel.firstLevel} ending
-	</div>
+	<div pg-select="myModel.myView"></div>
 </div>
-
-	<script src="live-template.js"></script>
 </body>
+<script src="live-template.js"></script>
+
 </html>

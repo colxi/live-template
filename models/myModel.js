@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 16:25:55
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-05-26 06:21:51
+* @Last Modified time: 2018-05-26 20:13:37
 */
 
 
@@ -16,10 +16,19 @@
 
 let model = new Model('myModel' , {});
 
-model.myContent = "__MYCONTENT__";
-model.firstLevel = "__FIRSTLEVEL__";
-model.secondLevel = "__SECONDLEVEL__";
-model.thirdLevel = "__THIRDDLEVEL__";
+model.ID = "#3245245"
+model.type = {} ;
+model.type.profile = 'Premium';
+model.secondName = 'Pottie';
+model.firstName = 'Emma';
+model.Address = {};
+model.Address.Number = '453';
+model.Address.Street = 'Redwood Dr.';
+model.Address.City = 'Garberville';
+model.Address.State = 'California';
+
+currentStatus ='online'
+
 
 model.getContext = function(){ console.log(this,self) }
 

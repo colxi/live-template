@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-05-26 14:37:31
+* @Last Modified time: 2018-05-31 04:07:56
 */
 
 
@@ -38,12 +38,14 @@
 
 			window[loaderId] = function( m ){
 				resolve( m );
+				window[loaderId] = null;
 				delete window[loaderId];
 				script.remove();
 			};
 
 			script.onerror = () => {
 				reject(new Error("Failed to load module script with URL " + url));
+				window[loaderId] = null;
 				delete window[loaderId];
 				script.remove();
 			};
@@ -69,7 +71,7 @@
 			set : function(model, tokenName, value){
 
 				// if value to SET is an Object...
-				if( value instanceof Object ){
+				if( value instanceof Object && typeof value === 'object' && !(value instanceof HTMLElement) ){
 					// and property in _Model already exist and is an object, mix them...
 					if( model[tokenName] instanceof Object ) Object.assign( model[tokenName] , value);
 					// if its not an object, generate another Level in the proxy
@@ -110,9 +112,9 @@
 						}
 					});
 				}
-
 				return true;
 			},
+
 			get : function(model, tokenName){
 				return model[tokenName]
 			}
@@ -318,19 +320,36 @@
 		 * @param  {Function} callback [description]
 		 * @return {[type]}            [description]
 		 */
-		forEachTextNodeToken(element, callback){
-			if(element.tagName !== 'SCRIPT' && element.tagName !== 'STYLE'){
-				// iterate the text Nodes looking for templating tokens
-				element.childNodes.forEach( childNode=>{
-					// if the child is a textNode (ignore Script and Style contents...)
-				    if( childNode.nodeType === Node.TEXT_NODE ) {
-						// get all the tokens from it textContent
-						let tokens = Util.getStringTokens(childNode.nodeValue, true);
-						// iterate each token and perform the required binding
-						tokens.forEach( tokenName=> callback(childNode, tokenName) )
-				    }
-				});
+		forEachTextNodeToken(element, callback, searchInTemplate=false){
+			// ignore Script and Style contents...
+			if( element.tagName === 'SCRIPT' && element.tagName === 'STYLE') return false;
+
+			// iterate the childNodes of the element
+			element.childNodes.forEach( childNode=>{
+    		    if( childNode.nodeType === Node.TEXT_NODE ) {
+    		    	let tokens = Util.getTextNodeTokens( childNode , searchInTemplate);
+					// execute the callback with  each found token
+					tokens.forEach( tokenName=> callback(childNode, tokenName) )
+					// done! ready, for search in the next element childNode
+			    }
+			});
+			//done!
+			return true;
+		},
+
+		getTextNodeTokens( texNode, searchInTemplate=false ){
+			let tokens = [];
+			// Scan only textNodes
+	    	if(searchInTemplate){
+    			// if requested, search for tokens in the template
+	    		if( bindingTables.elements.has(texNode) ){
+	    			tokens = Util.getStringTokens( bindingTables.elements.get(texNode) , true);
+	    		}
+	    	}else{
+				// ...or search for tokens in the textNode current value
+				tokens = Util.getStringTokens(texNode.nodeValue, true);
 			}
+			return tokens;
 		}
 
 	}
@@ -341,48 +360,88 @@
 
 	// Callback function to execute when mutations are observed
 	var onDOMChange = function(mutationsList) {
-		console.log(mutationsList)
 	    for(var mutation of mutationsList) {
 	        if (mutation.type == 'childList') {
+
 	            // if Nodes have been removel
+	            console.log('delete collection ',mutation.removedNodes)
 	            mutation.removedNodes.forEach( e=>{
+
+	            	if( e.nodeType === Node.TEXT_NODE ){
+	            		let tokens = Util.getTextNodeTokens(e,true);
+
+	            		tokens.forEach( tokenName=>{
+		            		if( bindingTables.names.hasOwnProperty( tokenName ) ){
+								let index = bindingTables.names[tokenName].indexOf(e);
+								if (index !== -1)  bindingTables.names[tokenName].splice(index, 1);
+								if( !bindingTables.names[tokenName].length ){
+									bindingTables.names[tokenName] = null;
+									delete bindingTables.names[tokenName]
+								}
+							}
+						});
+
+	            		return;
+	            	}
+
+	            	//console.log('delete ', typeof e, ,  e)
 	            	// get all children as Array instead of NodeList
-	            	let all = Array.from( e.querySelectorAll("*") );
 	            	// include in the array the Deleted element
+	            	let all = Array.from( e.querySelectorAll("*") );
 	            	all.push(e);
 
 	            	all.forEach( child =>{
 	            		// inspect Attributes
-	            		for(let attr in child.attributes){
-							// block if attr is not a property
-							if( !child.attributes.hasOwnProperty(attr) ) continue;
-							// get all stringTokens in current Attribute
-							let tokens = Util.getStringTokens(child.attributes[attr].value, true);
-							// if is a binderAttribute ...
-							if( Util.isBinderAttribute( child.attributes[attr].name ) ){
-								// if no token found in attribute name, asume token has no templating format
-								if( !tokens.length ) tokens.push( child.attributes[attr].value )
-							}
-							// iterate stringTokens
-							tokens.forEach( tokenName=>{
-								if( bindingTables.names.hasOwnProperty( tokenName ) ){
-									let index = bindingTables.names[tokenName].indexOf(child);
-									if (index !== -1)  bindingTables.names[tokenName].splice(index, 1);
-									if( !bindingTables.names[tokenName].length ) delete bindingTables.names[tokenName]
+	            		let tokens = [];
+
+	            		// ATTRIBUTES SEARCH (in template)
+	            		if( bindingTables.elements.has(child) ){
+							// get all stringTokens in current Element Attribute Template
+            				let attributes = bindingTables.elements.get(child);
+            				for(let attr in attributes){
+            					if( !attributes.hasOwnProperty(attr) ) continue;
+            					let currentAttributeTokens = Util.getStringTokens(  attributes[attr] , true ) ;
+
+								if( Util.isBinderAttribute( attr ) && !currentAttributeTokens.lenght ){
+									// if value is quoted, call binder[bindername].subscribte
+									// with the quoted value
+									let v = attributes[attr].trim();
+									if( v.slice(0,1) === '\'' && v.slice(-1) === '\'') continue;
+									// if is a Binder Attribute (eg: pg-model), extract the value
+									else currentAttributeTokens = [ v ];
 								}
-							})
-						}
-						// inspect ChildTextNodes
+            					tokens = tokens.concat( currentAttributeTokens );
+            				}
+	            		}
+	            		tokens.forEach( tokenName=>{
+							if( bindingTables.names.hasOwnProperty( tokenName ) ){
+								let index = bindingTables.names[tokenName].indexOf(child);
+								if(index !== -1)  bindingTables.names[tokenName].splice(index, 1);
+								if( !bindingTables.names[tokenName].length ){
+									bindingTables.names[tokenName] = null;
+									delete bindingTables.names[tokenName];
+								}
+							}
+						})
+
+						// TEXZTCONTENXT SEARCH (TEMPLATE)
 	            		Util.forEachTextNodeToken(child, (childTextNode, tokenName) =>{
 							if( bindingTables.names.hasOwnProperty( tokenName ) ){
 								let index = bindingTables.names[tokenName].indexOf(childTextNode);
 								if (index !== -1)  bindingTables.names[tokenName].splice(index, 1);
-								if( !bindingTables.names[tokenName].length ) delete bindingTables.names[tokenName]
+								if( !bindingTables.names[tokenName].length ){
+									bindingTables.names[tokenName] = null;
+									delete bindingTables.names[tokenName];
+								}
 							}
-						})
+						}, true)
 
 	            	});
-	            	console.log(bindingTables.names)
+	            });
+
+	            // added nodes
+	            mutation.addedNodes.forEach( e=>{
+	            	parseElement(e);
 	            });
 	        }
 	    }
@@ -441,10 +500,9 @@
 
 				let binderName = element.attributes[attr].name.split('-');
 				let binderPrefix = binderName[0];
-				binderName = binderName[1];
 				if(binderPrefix === prefix){
-					if( !binders.hasOwnProperty(binderName) ) binders.default.bind(element,model.context, model.key,binderName);
-					else binders[binderName].bind(element,model.context, model.key);
+					if( !binders.hasOwnProperty(binderName[1]) ) binders.default.bind(element,model.context, model.key, [ binderName[1] , binderName[2] ] );
+					else binders[binderName[1]].bind(element,model.context, model.key,  [ binderName[1] , binderName[2] ] );
 				}
 
 
@@ -465,6 +523,7 @@
 		} )
 
 
+		if( element.childNodes.length) element.childNodes.forEach( e=> parseElement(e) );
 		return true;
 	}
 
@@ -543,6 +602,23 @@
 			publish : function(element, model, key, value){},
 			subscribe : function(element, model, key){},
 		},
+		select : {
+			bind : function(element,model,key){
+				model[key] = element;
+			},
+			unbind : function(){},
+			publish : function(element, model, key, value){},
+			subscribe : function(element, model, key){},
+		},
+		on : {
+			bind : function(element,model,key, attrName){
+				console.log( model[key] )
+				element.addEventListener( attrName[1] , e=> model[key](e) )
+			},
+			unbind : function(){},
+			publish : function(element, model, key, value){},
+			subscribe : function(element, model, key){},
+		},
 		each : {},
 		// pg-unknown :  undeclared binders perform default action...
 		default : {
@@ -553,11 +629,24 @@
 	}
 
 
-	document.querySelectorAll('*').forEach( e => parseElement(e) );
-	// Create an observer instance linked to the callback function
-	var observer = new MutationObserver( onDOMChange );
-	// observe the document topMost element
-	observer.observe(document.documentElement, { attributes: false, childList: true , subtree:true, characterData:false});
+let a;
+	window.onload =  x=>{
+		a = document.getElementById("container").innerHTML;
 
+		parseElement(document.documentElement);
+
+		//document.querySelectorAll('*').forEach( e => parseElement(e) );
+
+		// Create an observer instance linked to the callback function
+		var observer = new MutationObserver( onDOMChange );
+		// observe the document topMost element
+		observer.observe(document.documentElement, { attributes: false, childList: true , subtree:true, characterData:false});
+
+
+		_Model.myModel.loadModel= function(){ loadModel('myModel') }
+_Model.myModel.deleteBlock= function(){ _Model.myModel.container.remove() }
+_Model.myModel.loadView= function(){ _Model.myModel.myView.innerHTML = a; }
+
+	}
 
 //})();

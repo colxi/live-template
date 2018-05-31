@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+	<div id="box"></div>
+</body>
+<script type="text/javascript">
+
+	const map = new WeakMap();
+
+	let obj = document.getElementById('box');
+	// insert the Element reference in the weakMap
+	map.set( obj , 'this is my obj');
+	// remove the Element from the DOM
+	obj.remove();
+	// remove the Element reference in the variable
+	obj = null;
+
+	//console.log( map );
+
+</script>
+</html>
