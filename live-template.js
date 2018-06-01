@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-06-01 01:19:25
+* @Last Modified time: 2018-06-01 16:15:31
 */
 'use strict';
 
@@ -356,37 +356,34 @@
 
 
 
-
+let removefromcollection = function (e,tokenName){
+	if( bindingTables.names.hasOwnProperty( tokenName ) ){
+		let index = bindingTables.names[tokenName].indexOf(e);
+		if (index !== -1)  bindingTables.names[tokenName].splice(index, 1);
+		if( !bindingTables.names[tokenName].length ){
+			bindingTables.names[tokenName] = null;
+			delete bindingTables.names[tokenName]
+		}
+	}
+}
 
 	// Callback function to execute when mutations are observed
 	let onDOMChange = function(mutationsList) {
-	    for(let mutation of mutationsList) {
+	    for(let mutation of mutationsList){
 	        if (mutation.type !== 'childList') continue;
 
             // first process REMOVED NODES
             mutation.removedNodes.forEach( e=>{
-
             	switch( e.nodeType ){
             		case Node.TEXT_NODE : {
             			let tokens = Util.getTextNodeTokens(e,true);
-
-	            		tokens.forEach( tokenName=>{
-		            		if( bindingTables.names.hasOwnProperty( tokenName ) ){
-								let index = bindingTables.names[tokenName].indexOf(e);
-								if (index !== -1)  bindingTables.names[tokenName].splice(index, 1);
-								if( !bindingTables.names[tokenName].length ){
-									bindingTables.names[tokenName] = null;
-									delete bindingTables.names[tokenName]
-								}
-							}
-						});
+	            		tokens.forEach( tokenName=> removefromcollection(e,tokenName) );
 	            		break;
 	            	}
             		case Node.ELEMENT_NODE : {
-            			//console.log('delete ', typeof e, ,  e)
 		            	// get all children as Array instead of NodeList
-		            	// include in the array the Deleted element
 		            	let all = Array.from( e.querySelectorAll("*") );
+		            	// include in the array the Deleted root element
 		            	all.push(e);
 
 		            	all.forEach( child =>{
@@ -412,28 +409,10 @@
 	            					tokens = tokens.concat( currentAttributeTokens );
 	            				}
 		            		}
-		            		tokens.forEach( tokenName=>{
-								if( bindingTables.names.hasOwnProperty( tokenName ) ){
-									let index = bindingTables.names[tokenName].indexOf(child);
-									if(index !== -1)  bindingTables.names[tokenName].splice(index, 1);
-									if( !bindingTables.names[tokenName].length ){
-										bindingTables.names[tokenName] = null;
-										delete bindingTables.names[tokenName];
-									}
-								}
-							})
+		            		tokens.forEach( tokenName=> removefromcollection(child,tokenName) );
 
 							// TEXZTCONTENXT SEARCH (TEMPLATE)
-		            		Util.forEachTextNodeToken(child, (childTextNode, tokenName) =>{
-								if( bindingTables.names.hasOwnProperty( tokenName ) ){
-									let index = bindingTables.names[tokenName].indexOf(childTextNode);
-									if (index !== -1)  bindingTables.names[tokenName].splice(index, 1);
-									if( !bindingTables.names[tokenName].length ){
-										bindingTables.names[tokenName] = null;
-										delete bindingTables.names[tokenName];
-									}
-								}
-							}, true)
+		            		Util.forEachTextNodeToken(child, removefromcollection , true)
 
 		            	});
 		            	break;
@@ -445,9 +424,7 @@
             });
 
             // CONTINUE WITH NEW ADDED NODES
-            mutation.addedNodes.forEach( e=>{
-            	parseElement(e);
-            });
+            mutation.addedNodes.forEach( e=> parseElement(e) );
 	    }
 	    // done !
 	};
