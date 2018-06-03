@@ -2,80 +2,77 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-06-01 16:15:31
+* @Last Modified time: 2018-06-03 05:51:46
 */
 'use strict';
 
 // inject CSS
-(function(){
+const Template = (function(){
+	/*
+    // inject required CSS to enable some Binders
 	let css = '[__hidden__]{ display : none; }';
 	let style = document.createElement('style');
 	style.type = 'text/css';
 	if (style.styleSheet)  style.styleSheet.cssText = css;
 	else style.appendChild(document.createTextNode(css));
 	document.getElementsByTagName('head')[0].appendChild(style);
-})();
+	style, css = null;
+	// done!
+    */
 
+	const _DEBUG_ = function( ...msg ){
+		if( _CONFIG_.debugMode ) console.log( ...msg );
+	};
 
+	const _CONFIG_ = {
+		debugMode 				: false,
+		binderPrefix 			: 'pg',
+		placeholderDelimitiers  : ['${' , '}'],
+		modelsNamesExtension 	: '.js',
+		viewsNamesExtension 	: '.html',
+		modelsPath 				: './models/',
+		viewsPath 				: './views/'
+	};
 
-	let modelsPath = './models/';
-	let prefix = 'pg';
-	let templateDelimiters = ['${', '}'];
+	/**
+	 * _MODELS_ is a proxy wich grants acces to the models stored internally
+	 * @param {[type]} obj                       [description]
+	 * @param {[type]} modelName                 [description]
+	 * @param {[type]} modelContents)
+	 * @param {[type]}
+	 */
+	const _MODELS_ = new Proxy( {} , {
+		set : function(obj, modelName, modelContents){
+			// if value is not an Object throw an error
+			if( !(modelContents instanceof Object) ) throw new Error('new Model must be an object!')
+			// if model name already declared attach new properties, if not
+			// exists yet, create it.
+			if( obj[modelName] ) Object.assign( obj[modelName], modelContents );
+			else obj[modelName] = _CREATE_MODEL_(modelContents, modelName+'.');
+			// done !
+			return true;
+		},
+		get : function(obj, modelName){
+			return obj[modelName];
+		}
+	});
 
-	let expresion = {
-		tokenMatch :   /(?<!\\)\${[^{}]*}/g,
-		tokenReplace : '(?<!\\\\)\\${\\s*__TOKEN__\\s*}'
-	}
-
-
-	function loadModel(url){
-		url = modelsPath + url + '.js';
-
-		console.log('importing _Model' , url)
-		return new Promise((resolve, reject) => {
-			const script = document.createElement("script");
-			const loaderId = "__tempModuleLoadingVariable" + Math.random().toString(32).substring(2);
-
-			window[loaderId] = function( m ){
-				resolve( m );
-				window[loaderId] = null;
-				delete window[loaderId];
-				script.remove();
-			};
-
-			script.onerror = () => {
-				reject(new Error("Failed to load module script with URL " + url));
-				window[loaderId] = null;
-				delete window[loaderId];
-				script.remove();
-			};
-
-			script.type = "module";
-			script.textContent = `import * as m from "${url}"; window.${loaderId}( m.default )`;
-
-			document.documentElement.appendChild(script);
-		});
-	}
-
-
-	let Model = function(modelName, content = {} ){
-		if( !(this instanceof Model) ) throw new Error("Model Constructor must be called using 'new' .")
-		_Model[modelName] = content;
-		return _Model[modelName];
-	}
-
-
-	function createModel( modelContents, keyPath){
-		console.log(keyPath)
+	/**
+	 * [_CREATE_MODEL_ description]
+	 * @param  {[type]} modelContents [description]
+	 * @param  {[type]} keyPath       [description]
+	 * @return {[type]}               [description]
+	 */
+	const _CREATE_MODEL_ = function( modelContents, keyPath){
 		let level =  new Proxy( {} , {
 			set : function(model, tokenName, value){
 
 				// if value to SET is an Object...
 				if( value instanceof Object && typeof value === 'object' && !(value instanceof HTMLElement) ){
-					// and property in _Model already exist and is an object, mix them...
+					// and property in _MODELS_ already exist and is an object, mix them...
 					if( model[tokenName] instanceof Object ) Object.assign( model[tokenName] , value);
 					// if its not an object, generate another Level in the proxy
-					else model[tokenName] = createModel(value , keyPath+tokenName+'.');
+					else model[tokenName] = _CREATE_MODEL_(value , keyPath+tokenName+'.');
 					// done!
 					return true;
 				}
@@ -86,27 +83,27 @@
 				// iterate each registered binding for provided token, if exist
 				// an entry in the binding names for the current binding name
 
-				// bindingTables to Global _Model (_root) are stored without the _root
-				// keypath prefix. Remove it.
+				// bindingTables to Global _MODELS_ (_root) are stored without the _root
+				// keypath _CONFIG_.binderPrefix. Remove it.
 				if(keyPath === '_root.') keyPath = '';
 				if( bindingTables.names.hasOwnProperty(keyPath+tokenName) ){
 					bindingTables.names[keyPath+tokenName].forEach( element =>{
 						if(element.nodeType === Node.TEXT_NODE){
 							// if element is a textNode update it...
-							element.textContent = Util.applyStringTokens( bindingTables.elements.get(element), model) ;
+							element.textContent = Template.Util.populateStringPlaceholders( bindingTables.elements.get(element), model) ;
 						}else{
 							// if it's not a textNode, asume bindingTables are set
 							// in element attributes
 							let attr_list = bindingTables.elements.get(element);
 							for(let attr in attr_list){
 								//
-								if( Util.isBinderAttribute(attr) ){
-									let _model = Util.resolveBindingKeyPath( attr_list[attr] );
+								if( Template.Util.binderExists(attr) ){
+									let _model = Template.Util.resolveKeyPath( attr_list[attr] );
 									let bindingFn = attr.split('-')[1];
 									binders[bindingFn].subscribe(element,_model.context,_model.key , _model.context[_model.key]);
 								}else{
 									if( !attr_list.hasOwnProperty(attr) ) continue;
-									if(attr !== 'textNode')  element.setAttribute( attr,  Util.applyStringTokens( attr_list[attr], model ) );
+									if(attr !== 'textNode')  element.setAttribute( attr,  Template.Util.populateStringPlaceholders( attr_list[attr], model ) );
 								}
 							}
 						}
@@ -123,25 +120,13 @@
 		// assign the properties to the level
 		Object.assign( level, modelContents );
 		return level;
+	};
+
+
+	let expresion = {
+		tokenMatch :   /(?<!\\)\${[^{}]*}/g,
+		tokenReplace : '(?<!\\\\)\\${\\s*__TOKEN__\\s*}'
 	}
-
-	// _Model is a proxy wich grants acces to the models stored internally
-	let _Model = new Proxy( {} , {
-		set : function(obj, modelName, modelContents){
-			// if value is not an Object throw an error
-			if( !(modelContents instanceof Object) ) throw new Error('new _Model must be an object!')
-			// if Model name already declared attach new properties, if not
-			// exists yet, create it.
-			if( obj[modelName] ) Object.assign( obj[modelName], modelContents );
-			else obj[modelName] = createModel(modelContents, modelName+'.');
-			// done !
-			return true;
-		},
-		get : function(obj, modelName){
-			return obj[modelName];
-		}
-	})
-
 
 
 	let bindingTables = {
@@ -192,180 +177,42 @@
 			*/
 	};
 
-	let Util = {
-		/**
-		 * [inDOM description]
-		 * @param  {[type]} el [description]
-		 * @return {[type]}    [description]
-		 */
-		DOMContains( el ) {
-			if( !el ) return false;
-			while ( el = el.parentNode ) if ( el === document ) return true;
-			return false;
-		},
 
-		/**
-		 * [Util.removeTemplateDelimiters description]
-		 * @param  {[type]} bindName){              ( [description]
-		 * @return {[type]}             [description]
-		 */
-		removeTemplateDelimiters( token ){
-			//
-			return token.trim().slice(templateDelimiters[0].length, ( 0-templateDelimiters[1].length ) ).trim();
-		},
+	let removefromcollection = function (element , placeholder){
+		if( bindingTables.names.hasOwnProperty( placeholder ) ){
+			let index = bindingTables.names[placeholder].indexOf(element);
+			if (index !== -1)  bindingTables.names[placeholder].splice(index, 1);
+			if( !bindingTables.names[placeholder].length ){
+				bindingTables.names[placeholder] = null;
+				delete bindingTables.names[placeholder]
+			}
+		}
+	}
 
-		/**
-		 * Util.isBinderAttribute() : If the attribute name has a binder name syntax
-		 * structure return the binder name, if not , return false
-		 *
-		 * @param  {[type]}  attrName [description]
-		 * @return {Boolean}          [description]
-		 */
-		isBinderAttribute( attrName ){
-			//
-			return ( attrName.substring(0, (prefix.length+1)) == prefix+"-") ? attrName.substring(3) : false;
-		},
+	let getTemplatePlaceholders = function( element ){
+		// inspect Attributes
+		let placeholders = [];
 
-		/**
-		 * Util.getStringTokens(): Return an array with all the tokens found in the
-		 * provided String. If no tokens are found returns an empty array.
-		 *
-		 * @param  {String}  string                 String to analyze
-		 * @param  {Boolean} stripDelimiters 		Return tokens without delimiters
-		 *
-		 * @return {Array}                          Array of tokens
-		 */
-		getStringTokens( string, stripDelimiters = false ){
-			// extract all tokens from string
-			let tokens =  string.match( expresion.tokenMatch );
-			// remove duplicates!
-			tokens = Array.from( new Set(tokens) );
-			// if there are no results, return an empty array
-			if( !tokens ) return [];
-			// if strip delimiters filter has not been requested, return the tokens
-			// in it's original form ( eg: "${token_name}" }
-			if( !stripDelimiters ) return tokens;
-			// strip delimiters from token...
-			let tokensCleaned  = [];
-			tokens.forEach( bindName => tokensCleaned.push( Util.removeTemplateDelimiters(bindName) ) );
-			return tokensCleaned;
-		},
+		if( bindingTables.elements.has( element ) ){
+			// get all stringTokens in current Element Attribute Template
+			let attributes = bindingTables.elements.get( element );
+			for(let currentAttr in attributes){
+				if( !attributes.hasOwnProperty(currentAttr) ) continue;
+				let placeholdersPartial = Template.Util.getPlaceholdersFromString(  attributes[currentAttr] , true ) ;
 
-
-		/**
-		 * [Util.applyStringTokens description]
-		 *
-		 * @param  {[type]} string [description]
-		 *
-		 * @return {[type]}        [description]
-		 */
-		applyStringTokens(string){
-			// retrieve all the tokens contained in the string
-			let tokens = Util.getStringTokens( string, true );
-			// iterate each token
-			tokens.forEach( token=>{
-				let {context, key} = Util.resolveBindingKeyPath(token);
-				// generate the search regular expresion with the current token
-				let search = new RegExp( expresion.tokenReplace.replace('__TOKEN__', token) ,"g");
-				// find te value of the Binding token, in the provided model, and
-				// replace every token reference in the string, with it
-				string = string.replace( search , (context[key] || '') );
-			})
-			// done! return parsed String
-			return string;
-		},
-
-		/**
-		 * [Util.resolveBindingKeyPath description]
-		 * @param  {[type]} keyPath [description]
-		 * @return {[type]}         [description]
-		 */
-		resolveBindingKeyPath( keyPath ){
-			// split the string in the diferent path levels
-			let parts = keyPath.split(".");
-			// extract the last item (asume is the property)
-			let bindName = ( parts.splice(-1,1) )[0];
-
-			let result = {}
-
-			if( parts.length === 0 ){
-				//
-				// if there are no keys to iterate, asume is a global binding (_root model)
-				//
-				// if _root Model does not exist create it
-				if( !_Model['_root'] ) _Model['_root']  = {};
-				// generate output object
-				result = { context : _Model['_root'] , key : bindName };
-			}else{
-				//
-				// keys are found, iterate them to generate the Model context
-				//
-				let context = _Model;
-				for(let i = 0; i<parts.length;i++){
-					// if Model context does not exist, create it
-					if( typeof context[ parts[i] ] === 'undefined' ) context[ parts[i] ] = {};
-					// assign the context
-					context = context[ parts[i] ];
+				if( Template.Util.binderExists( currentAttr ) && !placeholdersPartial.lenght ){
+					// if value is quoted, call binder[bindername].subscribte
+					// with the quoted value
+					let v = attributes[currentAttr].trim();
+					if( v.slice(0,1) === '\'' && v.slice(-1) === '\'') continue;
+					// if is a Binder Attribute (eg: pg-model), extract the value
+					else placeholdersPartial = [ v ];
 				}
-				// generate the output object
-				result = { context : context , key : bindName }
+				placeholders = placeholders.concat( placeholdersPartial );
 			}
-			// done!
-			return result;
-		},
-
-		/**
-		 * [forEachTextNodeToken description]
-		 * @param  {[type]}   element  [description]
-		 * @param  {Function} callback [description]
-		 * @return {[type]}            [description]
-		 */
-		forEachTextNodeToken(element, callback, searchInTemplate=false){
-			// ignore Script and Style contents...
-			if( element.tagName === 'SCRIPT' && element.tagName === 'STYLE') return false;
-
-			// iterate the childNodes of the element
-			element.childNodes.forEach( childNode=>{
-    		    if( childNode.nodeType === Node.TEXT_NODE ) {
-    		    	let tokens = Util.getTextNodeTokens( childNode , searchInTemplate);
-					// execute the callback with  each found token
-					tokens.forEach( tokenName=> callback(childNode, tokenName) )
-					// done! ready, for search in the next element childNode
-			    }
-			});
-			//done!
-			return true;
-		},
-
-		getTextNodeTokens( texNode, searchInTemplate=false ){
-			let tokens = [];
-			// Scan only textNodes
-	    	if(searchInTemplate){
-    			// if requested, search for tokens in the template
-	    		if( bindingTables.elements.has(texNode) ){
-	    			tokens = Util.getStringTokens( bindingTables.elements.get(texNode) , true);
-	    		}
-	    	}else{
-				// ...or search for tokens in the textNode current value
-				tokens = Util.getStringTokens(texNode.nodeValue, true);
-			}
-			return tokens;
 		}
-
+		return placeholders;
 	}
-
-
-
-let removefromcollection = function (e,tokenName){
-	if( bindingTables.names.hasOwnProperty( tokenName ) ){
-		let index = bindingTables.names[tokenName].indexOf(e);
-		if (index !== -1)  bindingTables.names[tokenName].splice(index, 1);
-		if( !bindingTables.names[tokenName].length ){
-			bindingTables.names[tokenName] = null;
-			delete bindingTables.names[tokenName]
-		}
-	}
-}
 
 	// Callback function to execute when mutations are observed
 	let onDOMChange = function(mutationsList) {
@@ -376,7 +223,7 @@ let removefromcollection = function (e,tokenName){
             mutation.removedNodes.forEach( e=>{
             	switch( e.nodeType ){
             		case Node.TEXT_NODE : {
-            			let tokens = Util.getTextNodeTokens(e,true);
+            			let tokens = Template.Util.getTextNodeTokens(e,true);
 	            		tokens.forEach( tokenName=> removefromcollection(e,tokenName) );
 	            		break;
 	            	}
@@ -385,40 +232,17 @@ let removefromcollection = function (e,tokenName){
 		            	let all = Array.from( e.querySelectorAll("*") );
 		            	// include in the array the Deleted root element
 		            	all.push(e);
-
 		            	all.forEach( child =>{
-		            		// inspect Attributes
-		            		let tokens = [];
 
-		            		// ATTRIBUTES SEARCH (in template)
-		            		if( bindingTables.elements.has(child) ){
-								// get all stringTokens in current Element Attribute Template
-	            				let attributes = bindingTables.elements.get(child);
-	            				for(let attr in attributes){
-	            					if( !attributes.hasOwnProperty(attr) ) continue;
-	            					let currentAttributeTokens = Util.getStringTokens(  attributes[attr] , true ) ;
-
-									if( Util.isBinderAttribute( attr ) && !currentAttributeTokens.lenght ){
-										// if value is quoted, call binder[bindername].subscribte
-										// with the quoted value
-										let v = attributes[attr].trim();
-										if( v.slice(0,1) === '\'' && v.slice(-1) === '\'') continue;
-										// if is a Binder Attribute (eg: pg-model), extract the value
-										else currentAttributeTokens = [ v ];
-									}
-	            					tokens = tokens.concat( currentAttributeTokens );
-	            				}
-		            		}
+		            		let tokens = getTemplatePlaceholders(child);
 		            		tokens.forEach( tokenName=> removefromcollection(child,tokenName) );
-
-							// TEXZTCONTENXT SEARCH (TEMPLATE)
-		            		Util.forEachTextNodeToken(child, removefromcollection , true)
-
+							// TEXTCONTENT SEARCH (TEMPLATE)
+		            		Template.Util.forEachTextNodeToken(child, removefromcollection , true)
 		            	});
 		            	break;
 		            }
             		default : {
-            			console.warn('onDOMChange() : Unimplemented type of Node : ' + e.nodeType.toString() );
+            			_DEBUG_('onDOMChange() : Unimplemented type of Node : ' + e.nodeType.toString() );
             		}
             	}
             });
@@ -453,9 +277,9 @@ let removefromcollection = function (e,tokenName){
 			if( !element.attributes.hasOwnProperty(attr) ) continue;
 
 			// get all the tokens in attribute in an array
-			let tokens = Util.getStringTokens(element.attributes[attr].value, true);
+			let tokens = Template.Util.getPlaceholdersFromString(element.attributes[attr].value, true);
 
-			if( Util.isBinderAttribute( element.attributes[attr].name ) && !tokens.lenght ){
+			if( Template.Util.binderExists( element.attributes[attr].name ) && !tokens.lenght ){
 				// if value is quoted, call binder[bindername].subscribte
 				// with the quoted value
 				let v = element.attributes[attr].value.trim();
@@ -468,7 +292,7 @@ let removefromcollection = function (e,tokenName){
 
 			// iterate all tokens
 			tokens.forEach( tokenName=>{
-				let model = Util.resolveBindingKeyPath(tokenName);
+				let model = Template.Util.resolveKeyPath(tokenName);
 
 				if( bindingTables.elements.has(element) ){
 					let table = bindingTables.elements.get(element);
@@ -482,7 +306,7 @@ let removefromcollection = function (e,tokenName){
 
 				let binderName = element.attributes[attr].name.split('-');
 				let binderPrefix = binderName[0];
-				if(binderPrefix === prefix){
+				if(binderPrefix === _CONFIG_.binderPrefix){
 					if( !binders.hasOwnProperty(binderName[1]) ) binders.default.bind(element,model.context, model.key, [ binderName[1] , binderName[2] ] );
 					else binders[binderName[1]].bind(element,model.context, model.key,  [ binderName[1] , binderName[2] ] );
 				}
@@ -491,7 +315,7 @@ let removefromcollection = function (e,tokenName){
 			})
 		}
 
-		Util.forEachTextNodeToken(element, (childNode, tokenName) =>{
+		Template.Util.forEachTextNodeToken(element, (childNode, tokenName) =>{
 			// register the textNode in the bindingTables registry
 			bindingTables.elements.set(childNode, childNode.nodeValue );
 			// bind the element with the tokem
@@ -500,7 +324,7 @@ let removefromcollection = function (e,tokenName){
 		})
 
 		parsedTokenNames.forEach( tokenName => {
-			let model = Util.resolveBindingKeyPath(tokenName);
+			let model = Template.Util.resolveKeyPath(tokenName);
 			model.context[model.key] =model.context[model.key]
 		} )
 
@@ -523,22 +347,34 @@ let removefromcollection = function (e,tokenName){
 		bindingTables.names[tokenName].push(element);
 
 		// get the container model, if model was not provided
-		let model = Util.resolveBindingKeyPath(tokenName);
+		let model = Template.Util.resolveKeyPath(tokenName);
 		// TODO: add an observer to the element to track changes in its structure/bindingTables
 
-		// When item is not linked with any _Model (Model_root) create a
+		// When item is not linked with any _MODELS_ (Model_root) create a
 		// variable acces in the 'window' Object, to simulate global variable
-		if( model.context === _Model._root && !window.hasOwnProperty(model.key) ){
-			// if variable already exist in window, delete it and assign again ?
-			//
+		if( model.context === _MODELS_._root ){
+
+			// if variable already exist in window, delete it and assign again
+            // later, after creating the getter and setter
+            let temp;
+            if( window.hasOwnProperty(model.key) ){
+                temp = window[model.key];
+                delete window[model.key];
+            }
+
 			Object.defineProperty(window, model.key, {
 				set: function(value) {
-					_Model._root[model.key] = value
+					_MODELS_._root[model.key] = value
 				},
 				get: function() {
-					return _Model._root[model.key]
-				}
+					return _MODELS_._root[model.key]
+				},
+                configurable : true,
+                enumerable: true
 			});
+
+            // if variable existed previously reasign its original value
+            if( typeof temp !== 'undefined' ) window[model.key] = temp;
 		}
 
 		// done!
@@ -558,24 +394,25 @@ let removefromcollection = function (e,tokenName){
 			},
 			unbind : function(){},
 			publish : function(element, model, key, value){
-				// change in DOM must be setted to _Model Object
-				console.log('pg-value publish BINDER: publishing!',model,key,value)
+				// change in DOM must be setted to _MODELS_ Object
 				model[key] = value;
 			},
 			subscribe : function(element, model, key){
 				// change in object must be reflected in DOM
-				console.log('pg-value update BINDER: subscribe!')
 				element.value = model[ key ] || '' ;
 			},
 		},
-		show : {
+		if : {
 			bind : function(element,model,key){
 			},
 			unbind : function(){},
 			publish : function(element, model, key, value){},
 			subscribe : function(element, model, key, value){
-				if( value || value === undefined) element.removeAttribute('__hidden__');
-				else element.setAttribute('__hidden__',true);
+				if( value || value === undefined){
+                    element.style.display = '';
+                }else{
+                    element.style.setProperty("display", "none", "important")
+                }
 			},
 		},
 		model : {
@@ -584,6 +421,20 @@ let removefromcollection = function (e,tokenName){
 			publish : function(element, model, key, value){},
 			subscribe : function(element, model, key){},
 		},
+        view : {
+            bind : function(element,model,key,v){
+            },
+            unbind : function(){},
+            publish : function(element, model, key, value){},
+            subscribe : function(element, model, key){
+                element.innerHTML = '';
+                if( model[key] && model[key].length ){
+                    Template.loadView( model[key] ).then( html =>{
+                        element.innerHTML = html;
+                    });
+                }
+            },
+        },
 		select : {
 			bind : function(element,model,key){
 				model[key] = element;
@@ -594,7 +445,6 @@ let removefromcollection = function (e,tokenName){
 		},
 		on : {
 			bind : function(element,model,key, attrName){
-				console.log( model[key] )
 				element.addEventListener( attrName[1] , e=> model[key](e) )
 			},
 			unbind : function(){},
@@ -605,30 +455,366 @@ let removefromcollection = function (e,tokenName){
 		// pg-unknown :  undeclared binders perform default action...
 		default : {
 			bind: function(element,model,key,binderName){
-				console.log('DEFAULT BINDER bind():',element,model,key,binderName)
+				_DEBUG_('DEFAULT BINDER bind():',element,model,key,binderName)
 			}
 		}
 	}
 
+	return {
+		/**
+		 * [init description]
+		 * @return {[type]} [description]
+		 */
+		bind : function(){
+			parseElement(document.documentElement);
+			// Create an observer instance linked to the callback function
+			var observer = new MutationObserver( onDOMChange );
+			// observe the document topMost element
+			observer.observe(document.documentElement, { attributes: false, childList: true , subtree:true, characterData:false});
+		},
 
-let a;
-	window.onload =  x=>{
-		a = document.getElementById("container").innerHTML;
+		/**
+		 * [Model description]
+		 * @param {[type]} modelName [description]
+		 * @param {Object} content   [description]
+		 */
+		Model : function(modelName, content = {} ){
+			if( !(this instanceof Template.Model) ) throw new Error("Model Constructor must be called using 'new'.");
+			_MODELS_[modelName] = content;
+			return _MODELS_[modelName];
+		},
 
-		parseElement(document.documentElement);
+		/**
+		 * [View description]
+		 * @param {[type]} viewName [description]
+		 * @param {[type]} content  [description]
+		 */
+		View : function( viewName, content){
+			//
+		},
 
-		//document.querySelectorAll('*').forEach( e => parseElement(e) );
+		/**
+		 * [loadModel description]
+		 * @param  {String} modelName [description]
+		 * @return {[type]}           [description]
+		 */
+		loadModel : /* async */ function( modelName = '' ){
+			if( typeof modelName !== 'string' ) throw new Error("Template.loadModel() : Model name must be a String.");
 
-		// Create an observer instance linked to the callback function
-		var observer = new MutationObserver( onDOMChange );
-		// observe the document topMost element
-		observer.observe(document.documentElement, { attributes: false, childList: true , subtree:true, characterData:false});
+			// prepare the pathname
+			modelName = modelName.trim();
+			modelName = _CONFIG_.modelsPath + modelName;
+			if( _CONFIG_.modelsNamesExtension ) modelName = modelName + _CONFIG_.modelsNamesExtension;
+
+			return new Promise((resolve, reject) => {
+				let script = document.createElement("script");
+				let loaderId = "__tempModuleLoadingVariable" + Math.random().toString(32).substring(2);
+
+				// Handler to be executed when Module is loaded
+				window[loaderId] = function( m ){
+					resolve( m );
+					// remove loader function and script element
+					window[loaderId] = null;
+					delete window[loaderId];
+					script.remove();
+					script = null;
+				};
+				// Handler to Errors on load
+				script.onerror = () => {
+					reject( new Error("Template.loadModel() : Failed to load model script with URL " + modelName));
+					// remove loader function and script element
+					window[loaderId] = null;
+					delete window[loaderId];
+					script.remove();
+					script = null;
+				};
+				// configure the  Module Script Element ...
+				script.type = "module";
+				script.textContent = `import * as m from "${modelName}"; window.${loaderId}( m.default )`;
+				// insert the Script element to trigger the module load
+				document.documentElement.appendChild(script);
+			});
+			// done. Promise will be resolved when model Module is loaded
+			return true;
+		},
+
+		/**
+		 * [loadView description]
+		 * @param  {String} viewName [description]
+		 * @return {[type]}          [description]
+		 */
+		loadView : /*async*/ function( viewName = '' ){
+			//
+			//
+            return new Promise( function(resolve,reject){
+                fetch(_CONFIG_.viewsPath + viewName + _CONFIG_.viewsNamesExtension)
+                .then( response => resolve( response.text() ) );
+            })
+        },
+
+		/**
+		 * [Util description]
+		 * @type {Object}
+		 */
+		Util : {
+			/**
+			 * [inDOM description]
+			 * @param  {[type]} el [description]
+			 * @return {[type]}    [description]
+			 */
+			DOMContains( el ) {
+				if( !el ) return false;
+				while ( el = el.parentNode ) if ( el === document ) return true;
+				return false;
+			},
+
+			stringHasSpaces: function(string){
+				if( typeof string !== 'string'){
+					throw new Error('Template.Util.stringHasSpaces() : Provided value is not a String');
+				}
+				return /\s/.test( string );
+			},
+
+			/**
+			 * Template.Util.binderExists() : If the attribute name has a binder name syntax
+			 * structure return the binder name, if not , return false
+			 *
+			 * @param  {[type]}  attrName [description]
+			 * @return {Boolean}          [description]
+			 */
+			binderExists( attrName ){
+				//
+                let binderNameParts = attrName.split('-');
+                if ( binderNameParts[0] !== _CONFIG_.binderPrefix ) return false;
+                if( binders.hasOwnProperty( binderNameParts[1] ) ) return true;
+                else return false;
+
+				//return ( attrName.substring(0, (_CONFIG_.binderPrefix.length+1)) == _CONFIG_.binderPrefix + "-") ? attrName.substring(3) : false;
+			},
+
+			/**
+			 * [Template.Util.removePlaceholderDelimiters description]
+			 * @param  {[type]} bindName){              ( [description]
+			 * @return {[type]}             [description]
+			 */
+			removePlaceholderDelimiters( placeholder = '' ){
+				//
+				placeholder = placeholder.trim()
+				placeholder = placeholder.slice( _CONFIG_.placeholderDelimitiers[0].length, ( 0-_CONFIG_.placeholderDelimitiers[1].length ) )
+				return placeholder.trim();
+			},
+
+			/**
+			 * Template.Util.getPlaceholdersFromString(): Return an array with all the tokens found in the
+			 * provided String. If no tokens are found returns an empty array.
+			 *
+			 * @param  {String}  string                 String to analyze
+			 * @param  {Boolean} stripDelimiters 		Return tokens without delimiters
+			 *
+			 * @return {Array}                          Array of tokens
+			 */
+			getPlaceholdersFromString( string = '', stripDelimiters = false ){
+				// extract all placeholders from string
+				let placeholders =  string.match( expresion.tokenMatch ) || [];
+				// remove duplicates!
+				placeholders = Array.from( new Set(placeholders) );
+				// if strip delimiters filter has been requested, strip delimiters
+				if( stripDelimiters ) placeholders = placeholders.map( current => Template.Util.removePlaceholderDelimiters(current) );
+				// strip delimiters from token...
+				return placeholders;
+			},
 
 
-		_Model.myModel.loadModel= function(){ loadModel('myModel') }
-_Model.myModel.deleteBlock= function(){ _Model.myModel.container.remove() }
-_Model.myModel.loadView= function(){ _Model.myModel.myView.innerHTML = a; }
+			/**
+			 * [Template.Util.populateStringPlaceholders description]
+			 *
+			 * @param  {[type]} string [description]
+			 *
+			 * @return {[type]}        [description]
+			 */
+			populateStringPlaceholders( string = ''){
+				// retrieve all the placeholders contained in the string
+				let placeholders = Template.Util.getPlaceholdersFromString( string, true );
+				// iterate each placeholder
+				placeholders.forEach( placeholder=>{
+					let model = Template.Util.resolveKeyPath( placeholder );
+					// generate the search regular expresion with the current placeholder
+					let search = new RegExp( expresion.tokenReplace.replace('__TOKEN__', placeholder) ,"g");
+					// find te value of the Binding placeholder, in the provided model, and
+					// replace every placeholder reference in the string, with it
+					string = string.replace( search , (model.context[model.key] || '') );
+				})
+				// done! return parsed String
+				return string;
+			},
 
-	}
+			/**
+			 * [Template.Util.resolveKeyPath description]
+			 * @param  {[type]} keyPath [description]
+			 * @return {[type]}         [description]
+			 */
+			resolveKeyPath( keyPath ){
+				// split the string in the diferent path levels
+				let parts = keyPath.split(".");
+				// extract the last item (asume is the property)
+				let bindName = ( parts.splice(-1,1) )[0];
+				let result;
 
-//})();
+				if( parts.length === 0 ){
+					//
+					// if there are no keys to iterate, asume is a global binding (_root model)
+					//
+					// if _root model does not exist create it
+					if( !_MODELS_['_root'] ) _MODELS_['_root']  = {};
+					// generate output object
+					result = { context : _MODELS_['_root'] , key : bindName };
+				}else{
+					//
+					// keys are found, iterate them to generate the model context
+					//
+					let context = _MODELS_;
+					for(let i = 0; i<parts.length;i++){
+						// if model context does not exist, create it
+						if( typeof context[ parts[i] ] === 'undefined' ) context[ parts[i] ] = {};
+						// assign the context
+						context = context[ parts[i] ];
+					}
+					// generate the output object
+					result = { context : context , key : bindName }
+				}
+				// done!
+				return result;
+			},
+
+			/**
+			 * [forEachTextNodeToken description]
+			 * @param  {[type]}   element  [description]
+			 * @param  {Function} callback [description]
+			 * @return {[type]}            [description]
+			 */
+			forEachTextNodeToken(element, callback, searchInTemplate=false){
+				// ignore Script and Style contents...
+				if( element.tagName === 'SCRIPT' && element.tagName === 'STYLE') return false;
+
+				// iterate the childNodes of the element
+				element.childNodes.forEach( childNode=>{
+	    		    if( childNode.nodeType === Node.TEXT_NODE ) {
+	    		    	let tokens = Template.Util.getTextNodeTokens( childNode , searchInTemplate);
+						// execute the callback with  each found token
+						tokens.forEach( tokenName=> callback(childNode, tokenName) )
+						// done! ready, for search in the next element childNode
+				    }
+				});
+				//done!
+				return true;
+			},
+
+			getTextNodeTokens( texNode, searchInTemplate=false ){
+				let tokens = [];
+				// Scan only textNodes
+		    	if(searchInTemplate){
+	    			// if requested, search for tokens in the template
+		    		if( bindingTables.elements.has(texNode) ){
+		    			tokens = Template.Util.getPlaceholdersFromString( bindingTables.elements.get(texNode) , true);
+		    		}
+		    	}else{
+					// ...or search for tokens in the textNode current value
+					tokens = Template.Util.getPlaceholdersFromString(texNode.nodeValue, true);
+				}
+				return tokens;
+			}
+		},
+
+
+		/** CONFIGURATION */
+		set Config( configObject ){
+			if( typeof configObject !== 'object' ) throw new Error('Template.Config : Provided value must be an Object.')
+			for (let property in configObject){
+				if( !configObject.hasOwnProperty(property) ) continue;
+				this.Config[property] = configObject[property];
+			}
+			return true;
+		},
+		get Config(){
+			return {
+				// Getters
+				get debugMode(){ return _CONFIG_.debugMode},
+				get binderPrefix(){ return _CONFIG_.binderPrefix},
+				get	placeholderDelimitiers(){ return _CONFIG_.placeholderDelimitiers },
+				get modelsNamesExtension(){ return _CONFIG_.modelsNamesExtension },
+				get viewsNamesExtension(){ return _CONFIG_.viewsNamesExtension },
+				get	modelsPath(){ return _CONFIG_.modelsPath },
+				get	viewsPath(){ return _CONFIG_.viewsPath },
+				// Setters
+				set debugMode( value  ){
+					_CONFIG_.debugMode = value ? true : false;
+					return true;
+				},
+				set binderPrefix( value ){
+					// value validation
+					if( typeof value !== 'string' ) throw new Error('Template.Config.binderPrefix : Value must be a String.');
+					value = value.trim().toLowerCase();
+					if( !value.length  ) throw new Error('Template.Config.binderPrefix : Value can\'t be an empty String.');
+					if( value.indexOf('-') !== -1 ) throw new Error('Template.Config.binderPrefix : Value can\'t contain dashes ("-").');
+					if( Template.Util.stringHasSpaces( value ) ) throw new Error('Template.Config.binderPrefix : Value can\'t contain spaces.');
+					// done! accepted!
+					_CONFIG_.binderPrefix = value;
+					return true;
+				},
+				set placeholderDelimitiers( value ){
+					if( !Array.isArray( value ) ) throw new Error('Template.Config.placeholderDelimitiers : Value must be an Array.');
+					if( value.length !== 2 ) throw new Error('Template.Config.placeholderDelimitiers : Array must contain 2 keys.');
+					if( typeof value[0] !== 'string' || typeof value[1] !== 'string' ) throw new Error('Template.Config.placeholderDelimitiers : Array keys must be String.');
+					value = value.map( v => v.trim() );
+					if( !value[0].length || !value[1].length ) throw new Error('Template.Config.placeholderDelimitiers: Values can\'t be empty Strings.');
+					// done ! accepted!
+					_CONFIG_.placeholderDelimitiers = value;
+					return true;
+				},
+				set modelsNamesExtension( value ){
+					if( typeof value !== 'string' ) throw new Error('Template.Config.modelsNamesExtension : Value must be a String.');
+					value = value.trim();
+					if( Template.Util.stringHasSpaces( value ) ) throw new Error('Template.Config.modelsNamesExtension : Value can\'t contain spaces.');
+					// done! accepted!
+					_CONFIG_.modelsNamesExtension = value;
+					return true;
+				},
+				set viewsNamesExtension( value ){
+					if( typeof value !== 'string' ) throw new Error('Template.Config.viewsNamesExtension : Value must be a String.');
+					value = value.trim();
+					if( Template.Util.stringHasSpaces( value ) ) throw new Error('Template.Config.viewsNamesExtension : Value can\'t contain spaces.');
+					// done! accepted!
+					_CONFIG_.viewsNamesExtension = value;
+					return true;
+				},
+				set modelsPath( value ){
+					// value validation
+					if( typeof value !== 'string' ) throw new Error('Template.Config.modelsPath : Value must be a String.');
+					value = value.trim();
+					if( Template.Util.stringHasSpaces( value ) ) throw new Error('Template.Config.modelsPath : Value can\'t contain spaces.');
+					if ( value.slice(-1) !== '/' ) value += '/';
+					// done! accepted!
+					_CONFIG_.modelsPath = value;
+					return true;
+				},
+				set viewsPath( value ){
+					// value validation
+					if( typeof value !== 'string' ) throw new Error('Template.Config.viewsPath : Value must be a String.');
+					value = value.trim();
+					if( Template.Util.stringHasSpaces( value ) ) throw new Error('Template.Config.viewsPath : Value can\'t contain spaces.');
+					if ( value.slice(-1) !== '/' ) value += '/';
+					// done! accepted!
+					_CONFIG_.viewsPath = value;
+					return true;
+				},
+
+			}
+		},
+
+	};
+
+
+})();
+
+
+

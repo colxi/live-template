@@ -1,0 +1,31 @@
+<h1>SECTION 3</h1>
+
+<input type="button" value="Load MyModel" pg-on-click="myApp.loadModel">
+<input type="button" value="Delete Block" pg-on-click="myApp.deleteBlock">
+<input type="button" value="Load View" pg-on-click="myApp.loadView">
+
+<div pg-select="myApp.container" pg-if="myCondition" style="padding:40px;">
+	<div>
+		<input style="color:${myColor}" type="text" pg-value="myModel.Comment">
+		<textarea style="color: ${myModel.myColor}" pg-value="myModel.Comment"></textarea>
+		<select name="example" pg-value="myModel.mySelect">
+	    	<option value="">Other</option>
+	    	<option value="A">A</option>
+	    	<option value="B">B</option>
+		</select>
+	</div>
+	${currentStatus}
+	<section>
+		Member ID : ${myModel.ID} ( ${myModel.type.profile} )
+		<div>${myModel.secondName}, ${myModel.firstName}</div>
+		<div>
+			Adress :
+			<div> ${myModel.Address.Number} th, ${myModel.Address.Street} </div>
+			<div>${myModel.Address.City} , ${myModel.Address.State} </div>
+		</div>
+		<div>Comments : ${myModel.Comment} </div>
+		The user is currently ${currentStatus}
+	</section>
+
+</div>
+<div pg-select="myApp.myView"></div>

@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 16:25:55
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-05-26 20:13:37
+* @Last Modified time: 2018-06-03 04:50:16
 */
 
 
@@ -14,7 +14,23 @@
 // when change myColor removes the content of myModel.myContent input elementy
 //
 
-let model = new Model('myModel' , {});
+
+/*
+TODO:  use classes to generate Models
+
+let myModel =  class myModel extends Model {
+    constructor(name, level, spell) {
+        // Chain constructor with super
+        super(name, level);
+
+        // Add a new property
+        this.spell = spell;
+    }
+}
+
+*/
+
+let model = new Template.Model('myModel' , {});
 
 model.ID = "#3245245"
 model.type = {} ;
