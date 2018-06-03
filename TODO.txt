@@ -1,0 +1,5 @@
+- pg-for iterator
+- general refactory
+- modifiers on template placeholders
+- pass arguments to placeholders functioncalls
+-

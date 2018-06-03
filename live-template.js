@@ -2,30 +2,19 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-06-03 05:51:46
+* @Last Modified time: 2018-06-03 07:51:45
 */
 'use strict';
 
 // inject CSS
 const Template = (function(){
-	/*
-    // inject required CSS to enable some Binders
-	let css = '[__hidden__]{ display : none; }';
-	let style = document.createElement('style');
-	style.type = 'text/css';
-	if (style.styleSheet)  style.styleSheet.cssText = css;
-	else style.appendChild(document.createTextNode(css));
-	document.getElementsByTagName('head')[0].appendChild(style);
-	style, css = null;
-	// done!
-    */
 
 	const _DEBUG_ = function( ...msg ){
 		if( _CONFIG_.debugMode ) console.log( ...msg );
 	};
 
 	const _CONFIG_ = {
-		debugMode 				: false,
+		debugMode 				: true,
 		binderPrefix 			: 'pg',
 		placeholderDelimitiers  : ['${' , '}'],
 		modelsNamesExtension 	: '.js',
@@ -56,6 +45,7 @@ const Template = (function(){
 			return obj[modelName];
 		}
 	});
+
 
 	/**
 	 * [_CREATE_MODEL_ description]
@@ -253,8 +243,6 @@ const Template = (function(){
 	    // done !
 	};
 
-
-
 	/**
 	 * [parseElement description]
 	 * @param  {[type]} element [description]
@@ -283,8 +271,9 @@ const Template = (function(){
 				// if value is quoted, call binder[bindername].subscribte
 				// with the quoted value
 				let v = element.attributes[attr].value.trim();
-				if( v.slice(0,1) === '\'' && v.slice(-1) === '\''){
-
+                if( v.slice(0,1) === '\'' && v.slice(-1) === '\''){
+                    let binder = ( element.attributes[attr].name.split('-') )[1];
+                    binders[binder].subscribe(element, undefined, undefined, v.slice(1, -1) )
 				}
 				// if is a Binder Attribute (eg: pg-model), extract the value
 				else tokens = [ v ];
@@ -397,9 +386,9 @@ const Template = (function(){
 				// change in DOM must be setted to _MODELS_ Object
 				model[key] = value;
 			},
-			subscribe : function(element, model, key){
-				// change in object must be reflected in DOM
-				element.value = model[ key ] || '' ;
+			subscribe : function(element, model, key, value){
+                // change in object must be reflected in DOM
+				element.value = value || '' ;
 			},
 		},
 		if : {
@@ -408,7 +397,11 @@ const Template = (function(){
 			unbind : function(){},
 			publish : function(element, model, key, value){},
 			subscribe : function(element, model, key, value){
-				if( value || value === undefined){
+				// handle "true" "false" strings and "0" and "1" stringss
+                if(value) value = JSON.parse(value);
+                // show the element if value is True, or any other value not
+                // interpreted as False (like null, undefined, 0 ...)
+                if( value || value === undefined){
                     element.style.display = '';
                 }else{
                     element.style.setProperty("display", "none", "important")
@@ -419,18 +412,25 @@ const Template = (function(){
 			bind : function(element,model,key){},
 			unbind : function(){},
 			publish : function(element, model, key, value){},
-			subscribe : function(element, model, key){},
+			subscribe : function(element, model, key, value){
+                Template.loadModel( value )
+            },
 		},
         view : {
-            bind : function(element,model,key,v){
+            bind : function(element,model,key,value){
             },
             unbind : function(){},
             publish : function(element, model, key, value){},
-            subscribe : function(element, model, key){
+            subscribe : function(element, model, key, value){
                 element.innerHTML = '';
-                if( model[key] && model[key].length ){
-                    Template.loadView( model[key] ).then( html =>{
-                        element.innerHTML = html;
+                if( value && value.length ){
+                    Template.loadView( value ).then( html =>{
+                        if(html !== false) element.innerHTML = html;
+                        else{
+                            if(_CONFIG_.debugMode){
+                                element.innerHTML = "<div style='color:white; background:red;padding:5px'>Unable to load View " + _CONFIG_.viewsPath + value + _CONFIG_.viewsNamesExtension +'</div>';
+                            }
+                        }
                     });
                 }
             },
@@ -449,7 +449,7 @@ const Template = (function(){
 			},
 			unbind : function(){},
 			publish : function(element, model, key, value){},
-			subscribe : function(element, model, key){},
+			subscribe : function(element, model, key, value){},
 		},
 		each : {},
 		// pg-unknown :  undeclared binders perform default action...
@@ -491,6 +491,7 @@ const Template = (function(){
 		 */
 		View : function( viewName, content){
 			//
+            //
 		},
 
 		/**
@@ -544,11 +545,13 @@ const Template = (function(){
 		 * @return {[type]}          [description]
 		 */
 		loadView : /*async*/ function( viewName = '' ){
-			//
+            if( typeof viewName !== 'string' ) throw new Error("Template.loadView() : View name must be a String.");
 			//
             return new Promise( function(resolve,reject){
                 fetch(_CONFIG_.viewsPath + viewName + _CONFIG_.viewsNamesExtension)
-                .then( response => resolve( response.text() ) );
+                .then( response =>{
+                    resolve( (response.ok === true ) ? response.text() : false );
+                });
             })
         },
 
@@ -639,9 +642,9 @@ const Template = (function(){
 				placeholders.forEach( placeholder=>{
 					let model = Template.Util.resolveKeyPath( placeholder );
 					// generate the search regular expresion with the current placeholder
-					let search = new RegExp( expresion.tokenReplace.replace('__TOKEN__', placeholder) ,"g");
-					// find te value of the Binding placeholder, in the provided model, and
-					// replace every placeholder reference in the string, with it
+                    let search = new RegExp( expresion.tokenReplace.replace('__TOKEN__', placeholder) ,"g");
+                    // find te value of the Binding placeholder, in the provided model, and
+                    // replace every placeholder reference in the string, with it
 					string = string.replace( search , (model.context[model.key] || '') );
 				})
 				// done! return parsed String
@@ -722,7 +725,11 @@ const Template = (function(){
 					tokens = Template.Util.getPlaceholdersFromString(texNode.nodeValue, true);
 				}
 				return tokens;
-			}
+			},
+
+            exposeBindings: function(){
+                console.log(bindingTables)
+            }
 		},
 
 
