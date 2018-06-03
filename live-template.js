@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-06-03 07:51:45
+* @Last Modified time: 2018-06-03 11:01:19
 */
 'use strict';
 
@@ -13,6 +13,7 @@ const Template = (function(){
 		if( _CONFIG_.debugMode ) console.log( ...msg );
 	};
 
+
 	const _CONFIG_ = {
 		debugMode 				: true,
 		binderPrefix 			: 'pg',
@@ -22,6 +23,18 @@ const Template = (function(){
 		modelsPath 				: './models/',
 		viewsPath 				: './views/'
 	};
+
+
+	let _OBSERVER_ = new MutationObserver( mutationsList => {
+	    for(let mutation of mutationsList){
+	        if (mutation.type !== 'childList') continue;
+            // first process Removed Nodes
+            mutation.removedNodes.forEach( _unbindElement_ );
+            // and then Added Nodes
+            mutation.addedNodes.forEach(  _bindElement_  );
+	    }
+	    // done !
+	});
 
 	/**
 	 * _MODELS_ is a proxy wich grants acces to the models stored internally
@@ -37,7 +50,7 @@ const Template = (function(){
 			// if model name already declared attach new properties, if not
 			// exists yet, create it.
 			if( obj[modelName] ) Object.assign( obj[modelName], modelContents );
-			else obj[modelName] = _CREATE_MODEL_(modelContents, modelName+'.');
+			else obj[modelName] = _createModel_(modelContents, modelName+'.');
 			// done !
 			return true;
 		},
@@ -46,14 +59,56 @@ const Template = (function(){
 		}
 	});
 
+	/**
+	 * _BINDINGS_ holds two indexes :
+	 * - An Array with the PLACEHOLDERS, associating each  placeholder token to
+	 * each element wich contains it,
+	 * - A Weak Map for the ELEMENTS, wich stores each the Element original value
+	 * with the placeholders strings (template tokens)
+	 */
+	let _BINDINGS_ = {
+		placeholders : {
+			/*
+			"placeholder_1" :  [
+				elementReference,
+				elementReference,
+				textNodeReference
+				(...)
+			],
+			"placeholder_2" :  [
+				elementReference,
+				textNodeReference,
+				textNodeReference
+				(...)
+			]
+			(...)
+			*/
+		},
+		events : new WeakMap(),
+		elements : new WeakMap()
+		    /*
+			elementReference : {
+				"attributeName_1" : "tokenizedValueString",
+				"attributeName_2" : "tokenizedValueString",
+			},
+			textNodeReference : "tokenizedValueString",
+			textNodeReference : "tokenizedValueString",
+			elementReference : {
+				"attributeName_1" : "tokenizedValueString",
+				"attributeName_2" : "tokenizedValueString",
+				(...)
+			}
+			(...)
+			*/
+	};
 
 	/**
-	 * [_CREATE_MODEL_ description]
+	 * [_createModel_ description]
 	 * @param  {[type]} modelContents [description]
 	 * @param  {[type]} keyPath       [description]
 	 * @return {[type]}               [description]
 	 */
-	const _CREATE_MODEL_ = function( modelContents, keyPath){
+	const _createModel_ = function( modelContents, keyPath){
 		let level =  new Proxy( {} , {
 			set : function(model, tokenName, value){
 
@@ -62,7 +117,7 @@ const Template = (function(){
 					// and property in _MODELS_ already exist and is an object, mix them...
 					if( model[tokenName] instanceof Object ) Object.assign( model[tokenName] , value);
 					// if its not an object, generate another Level in the proxy
-					else model[tokenName] = _CREATE_MODEL_(value , keyPath+tokenName+'.');
+					else model[tokenName] = _createModel_(value , keyPath+tokenName+'.');
 					// done!
 					return true;
 				}
@@ -73,18 +128,18 @@ const Template = (function(){
 				// iterate each registered binding for provided token, if exist
 				// an entry in the binding names for the current binding name
 
-				// bindingTables to Global _MODELS_ (_root) are stored without the _root
+				// _BINDINGS_ to Global _MODELS_ (_root) are stored without the _root
 				// keypath _CONFIG_.binderPrefix. Remove it.
 				if(keyPath === '_root.') keyPath = '';
-				if( bindingTables.names.hasOwnProperty(keyPath+tokenName) ){
-					bindingTables.names[keyPath+tokenName].forEach( element =>{
+				if( _BINDINGS_.placeholders.hasOwnProperty(keyPath+tokenName) ){
+					_BINDINGS_.placeholders[keyPath+tokenName].forEach( element =>{
 						if(element.nodeType === Node.TEXT_NODE){
 							// if element is a textNode update it...
-							element.textContent = Template.Util.populateStringPlaceholders( bindingTables.elements.get(element), model) ;
+							element.textContent = Template.Util.populateStringPlaceholders( _BINDINGS_.elements.get(element), model) ;
 						}else{
-							// if it's not a textNode, asume bindingTables are set
+							// if it's not a textNode, asume _BINDINGS_ are set
 							// in element attributes
-							let attr_list = bindingTables.elements.get(element);
+							let attr_list = _BINDINGS_.elements.get(element);
 							for(let attr in attr_list){
 								//
 								if( Template.Util.binderExists(attr) ){
@@ -113,142 +168,12 @@ const Template = (function(){
 	};
 
 
-	let expresion = {
-		tokenMatch :   /(?<!\\)\${[^{}]*}/g,
-		tokenReplace : '(?<!\\\\)\\${\\s*__TOKEN__\\s*}'
-	}
-
-
-	let bindingTables = {
-		// Contains a list of bindingNames, with an array linked containing
-		// all the Elements where the binding has been linked. This array
-		// is not weak referenced (cause needs to be iterated), so is
-		// periodically cleared by a Garbage Collector.
-		// When a binding value is modified, this list is cheked, to update
-		// the new value on all the linked Elements
-		names : {
-			/*
-			"myBindingName" :  [
-				elementReference,
-				elementReference,
-				textNodeReference
-				(...)
-			],
-			"anotherBindingName" :  [
-				elementReference,
-				textNodeReference,
-				textNodeReference
-				(...)
-			]
-			(...)
-			*/
-		},
-		// Contains a weakMap with all the binded elements, with all the
-		// element internal references to the binding. This lists prevents
-		// the need of re-scan the whole Element when the value of the binding
-		// needs to be updated.
-		elements : new WeakMap()
-		    /*
-		    WeakMap{
-				elementReference : {
-					"attributeName_1" : "tokenizedValueString",
-					"attributeName_2" : "tokenizedValueString",
-					"textNode" 		  : true
-				},
-				textNodeReference : "tokenizedValueString",
-				textNodeReference : "tokenizedValueString",
-				elementReference : {
-					"attributeName_1" : "tokenizedValueString",
-					"attributeName_2" : "tokenizedValueString",
-					(...)
-				}
-				(...)
-			}
-			*/
-	};
-
-
-	let removefromcollection = function (element , placeholder){
-		if( bindingTables.names.hasOwnProperty( placeholder ) ){
-			let index = bindingTables.names[placeholder].indexOf(element);
-			if (index !== -1)  bindingTables.names[placeholder].splice(index, 1);
-			if( !bindingTables.names[placeholder].length ){
-				bindingTables.names[placeholder] = null;
-				delete bindingTables.names[placeholder]
-			}
-		}
-	}
-
-	let getTemplatePlaceholders = function( element ){
-		// inspect Attributes
-		let placeholders = [];
-
-		if( bindingTables.elements.has( element ) ){
-			// get all stringTokens in current Element Attribute Template
-			let attributes = bindingTables.elements.get( element );
-			for(let currentAttr in attributes){
-				if( !attributes.hasOwnProperty(currentAttr) ) continue;
-				let placeholdersPartial = Template.Util.getPlaceholdersFromString(  attributes[currentAttr] , true ) ;
-
-				if( Template.Util.binderExists( currentAttr ) && !placeholdersPartial.lenght ){
-					// if value is quoted, call binder[bindername].subscribte
-					// with the quoted value
-					let v = attributes[currentAttr].trim();
-					if( v.slice(0,1) === '\'' && v.slice(-1) === '\'') continue;
-					// if is a Binder Attribute (eg: pg-model), extract the value
-					else placeholdersPartial = [ v ];
-				}
-				placeholders = placeholders.concat( placeholdersPartial );
-			}
-		}
-		return placeholders;
-	}
-
-	// Callback function to execute when mutations are observed
-	let onDOMChange = function(mutationsList) {
-	    for(let mutation of mutationsList){
-	        if (mutation.type !== 'childList') continue;
-
-            // first process REMOVED NODES
-            mutation.removedNodes.forEach( e=>{
-            	switch( e.nodeType ){
-            		case Node.TEXT_NODE : {
-            			let tokens = Template.Util.getTextNodeTokens(e,true);
-	            		tokens.forEach( tokenName=> removefromcollection(e,tokenName) );
-	            		break;
-	            	}
-            		case Node.ELEMENT_NODE : {
-		            	// get all children as Array instead of NodeList
-		            	let all = Array.from( e.querySelectorAll("*") );
-		            	// include in the array the Deleted root element
-		            	all.push(e);
-		            	all.forEach( child =>{
-
-		            		let tokens = getTemplatePlaceholders(child);
-		            		tokens.forEach( tokenName=> removefromcollection(child,tokenName) );
-							// TEXTCONTENT SEARCH (TEMPLATE)
-		            		Template.Util.forEachTextNodeToken(child, removefromcollection , true)
-		            	});
-		            	break;
-		            }
-            		default : {
-            			_DEBUG_('onDOMChange() : Unimplemented type of Node : ' + e.nodeType.toString() );
-            		}
-            	}
-            });
-
-            // CONTINUE WITH NEW ADDED NODES
-            mutation.addedNodes.forEach( e=> parseElement(e) );
-	    }
-	    // done !
-	};
-
 	/**
-	 * [parseElement description]
+	 * [_bindElement_ description]
 	 * @param  {[type]} element [description]
 	 * @return {[type]}         [description]
 	 */
-	let parseElement = function(element){
+	const _bindElement_ = function( element ){
 		/*
 			TWO DIFFERENT PARTS OF EACH ELEMENT CAN CONTAIN TEMPLATE TOKENS
 			Those are : Element Attributes, and TextNodes. Analize first Element
@@ -256,7 +181,7 @@ const Template = (function(){
 			textNodes, and perform again the required bindings.
 		 */
 
-		// iterate each attribute of the element looking for templating tokens,
+		// iterate each attribute of the element looking for templating placeholders,
 		// or attribute  binders ...
 
 		let parsedTokenNames= [];
@@ -264,10 +189,10 @@ const Template = (function(){
 			// block if attrName is not a property
 			if( !element.attributes.hasOwnProperty(attr) ) continue;
 
-			// get all the tokens in attribute in an array
-			let tokens = Template.Util.getPlaceholdersFromString(element.attributes[attr].value, true);
+			// get all the placeholders in attribute in an array
+			let placeholders = Template.Util.getStringPlaceholders( element.attributes[attr].value );
 
-			if( Template.Util.binderExists( element.attributes[attr].name ) && !tokens.lenght ){
+			if( Template.Util.binderExists( element.attributes[attr].name ) && !placeholders.lenght ){
 				// if value is quoted, call binder[bindername].subscribte
 				// with the quoted value
 				let v = element.attributes[attr].value.trim();
@@ -276,68 +201,59 @@ const Template = (function(){
                     binders[binder].subscribe(element, undefined, undefined, v.slice(1, -1) )
 				}
 				// if is a Binder Attribute (eg: pg-model), extract the value
-				else tokens = [ v ];
+				else placeholders = [ v ];
 			}
 
-			// iterate all tokens
-			tokens.forEach( tokenName=>{
+			// iterate all placeholders
+			placeholders.forEach( tokenName=>{
 				let model = Template.Util.resolveKeyPath(tokenName);
 
-				if( bindingTables.elements.has(element) ){
-					let table = bindingTables.elements.get(element);
+				if( _BINDINGS_.elements.has(element) ){
+					let table = _BINDINGS_.elements.get(element);
 					table[ element.attributes[attr].name ] = element.attributes[attr].value;
-					bindingTables.elements.set(element,table );
-				}else bindingTables.elements.set(element , { [element.attributes[attr].name] : element.attributes[attr].value } );
+					_BINDINGS_.elements.set(element,table );
+				}else _BINDINGS_.elements.set(element , { [element.attributes[attr].name] : element.attributes[attr].value } );
 
 				// bind the element with the token
-				bind(element, tokenName);
+				_bindPlaceholder_(element, tokenName);
 				parsedTokenNames.push(tokenName);
-
 				let binderName = element.attributes[attr].name.split('-');
 				let binderPrefix = binderName[0];
 				if(binderPrefix === _CONFIG_.binderPrefix){
 					if( !binders.hasOwnProperty(binderName[1]) ) binders.default.bind(element,model.context, model.key, [ binderName[1] , binderName[2] ] );
 					else binders[binderName[1]].bind(element,model.context, model.key,  [ binderName[1] , binderName[2] ] );
 				}
-
-
 			})
 		}
-
 		Template.Util.forEachTextNodeToken(element, (childNode, tokenName) =>{
-			// register the textNode in the bindingTables registry
-			bindingTables.elements.set(childNode, childNode.nodeValue );
+			// register the textNode in the _BINDINGS_ registry
+			_BINDINGS_.elements.set(childNode, childNode.nodeValue );
 			// bind the element with the tokem
-			bind(childNode, tokenName);
+			_bindPlaceholder_(childNode, tokenName);
 			parsedTokenNames.push(tokenName);
 		})
-
 		parsedTokenNames.forEach( tokenName => {
 			let model = Template.Util.resolveKeyPath(tokenName);
 			model.context[model.key] =model.context[model.key]
 		} )
-
-
-		if( element.childNodes.length) element.childNodes.forEach( e=> parseElement(e) );
+		if( element.childNodes.length) element.childNodes.forEach( e=> _bindElement_(e) );
 		return true;
 	}
 
-
-
-	let bind = function(element, tokenName){
+	const _bindPlaceholder_ = function( element , placeholder ){
 		// block if element is not a HTMLElement intance
 		if( !(element instanceof HTMLElement) && !(element instanceof Node) ) throw new Error('HTMLElement has to be provided');
 		// block if no binding name has been provided
-		if( tokenName.trim() === undefined ) throw new Error('Imposible to perform binding. Binding name not provided in Element');
+		if( placeholder.trim() === undefined ) throw new Error('Imposible to perform binding. Binding name not provided in Element');
 
 		// if the tokenName has not been registered previously, generate an empty entry
-		if( !bindingTables.names.hasOwnProperty(tokenName) ) bindingTables.names[tokenName] = [];
-		// link the element with the tokenName in the bindingTables registry
-		bindingTables.names[tokenName].push(element);
+		if( !_BINDINGS_.placeholders.hasOwnProperty(placeholder) ) _BINDINGS_.placeholders[placeholder] = [];
+		// link the element with the placeholder in the _BINDINGS_ registry
+		_BINDINGS_.placeholders[placeholder].push(element);
 
 		// get the container model, if model was not provided
-		let model = Template.Util.resolveKeyPath(tokenName);
-		// TODO: add an observer to the element to track changes in its structure/bindingTables
+		let model = Template.Util.resolveKeyPath(placeholder);
+		// TODO: add an observer to the element to track changes in its structure/_BINDINGS_
 
 		// When item is not linked with any _MODELS_ (Model_root) create a
 		// variable acces in the 'window' Object, to simulate global variable
@@ -370,6 +286,110 @@ const Template = (function(){
 		return true;
 	}
 
+	const _bindEvent_ = function(element, type, handler){
+		let bindedEvents = {};
+		// check if element has other events bindings
+		if( _BINDINGS_.events.has( element ) ){
+			// it does! get the event bindings list
+			bindedEvents = _BINDINGS_.events.get( element );
+			// iterate all the element binded events to ensure the same event
+			// has not been binded previously
+			for( let event in bindedEvents ){
+				if( !bindedEvents.hasOwnProperty(event) ) continue;
+				// already binded! Error!
+				// TODO : handle situation
+				if( event === type ) throw new Error('Element has already another event of the same type binded! Unexpected!')
+			}
+		}
+		// Include the the event to the element binded events object
+		bindedEvents[type] = handler;
+		_BINDINGS_.events.set( element, bindedEvents );
+		// Create the DOM event listener
+		element.addEventListener(type, handler);
+		// done!
+		return true;
+	};
+
+
+	/**
+	 * [_unbindElement_ description]
+	 * @param  {[type]} element [description]
+	 * @return {[type]}         [description]
+	 */
+	const _unbindElement_ = function( element ){
+		switch( element.nodeType ){
+    		case Node.TEXT_NODE : {
+    			let tokens = Template.Util.getTextNodePlaceholders(element,true);
+        		tokens.forEach( placeholder => _unbindPlaceholder_( element,placeholder ) );
+        		break;
+        	}
+    		case Node.ELEMENT_NODE : {
+            	// get all children as Array instead of NodeList
+            	let all = Array.from( element.querySelectorAll("*") );
+            	// include in the array the Deleted root element
+            	all.push(element);
+            	all.forEach( child =>{
+
+	            	// unbind all events
+	            	_unbindEvent_( child );
+
+            		let tokens = Template.Util.getTemplatePlaceholders(child);
+            		tokens.forEach( placeholder => _unbindPlaceholder_( child,placeholder ) );
+					// TEXTCONTENT SEARCH (TEMPLATE)
+            		Template.Util.forEachTextNodeToken(child, _unbindPlaceholder_ , true)
+            	});
+            	break;
+            }
+    		default : {
+    			_DEBUG_('onDOMChange() : Unimplemented type of Node : ' + element.nodeType.toString() );
+    		}
+    	}
+    	_BINDINGS_.elements.delete( element );
+    	return true;
+	};
+
+	const _unbindPlaceholder_ = function (element , placeholder){
+		if( _BINDINGS_.placeholders.hasOwnProperty( placeholder ) ){
+			let index = _BINDINGS_.placeholders[placeholder].indexOf(element);
+			if (index !== -1)  _BINDINGS_.placeholders[placeholder].splice(index, 1);
+			if( !_BINDINGS_.placeholders[placeholder].length ){
+				_BINDINGS_.placeholders[placeholder] = null;
+				delete _BINDINGS_.placeholders[placeholder]
+			}
+		}
+	}
+
+	const _unbindEvent_ = function( element , event = '' ){
+		// if element has event bindings...
+		if( _BINDINGS_.events.has(element) ){
+			// get the list of bindings and iterate it
+			let eventBindings  = _BINDINGS_.events.get( element );
+			for( let eventType in eventBindings ){
+				if( !eventBindings.hasOwnProperty( eventType) ) continue;
+				// if current eventName matches provided eventName, or all
+				// event bindings have been requested to be removed (event='')...
+				if( eventType === event || event === '' ){
+					// remove the event listener
+					element.removeEventListener( eventType, eventBindings[eventType] );
+					// and remove event from binded events list
+					delete eventBindings[eventType];
+				}
+			}
+			// if not all events have been removed, update Element Event Bindings
+			if( Object.keys( eventBindings ).length ) _BINDINGS_.events.set( element , eventBindings );
+			// else, delete Event Bindings entry for element
+			else _BINDINGS_.events.delete( element );
+		}
+		// done!
+		return true;
+	}
+
+
+
+	let expresion = {
+		tokenMatch :   /(?<!\\)\${[^{}]*}/g,
+		tokenReplace : '(?<!\\\\)\\${\\s*__TOKEN__\\s*}'
+	}
 
 
 
@@ -377,9 +397,7 @@ const Template = (function(){
 		// pg-value
 		value : {
 			bind : function(element,model,key){
-				element.addEventListener("input", e=>{
-					this.publish(element, model , key, e.target.value)
-				});
+				_bindEvent_( element, 'input', e=>this.publish(element, model , key, e.target.value) );
 			},
 			unbind : function(){},
 			publish : function(element, model, key, value){
@@ -445,7 +463,7 @@ const Template = (function(){
 		},
 		on : {
 			bind : function(element,model,key, attrName){
-				element.addEventListener( attrName[1] , e=> model[key](e) )
+				_bindEvent_( element, attrName[1], e=> model[key](e) );
 			},
 			unbind : function(){},
 			publish : function(element, model, key, value){},
@@ -466,11 +484,31 @@ const Template = (function(){
 		 * @return {[type]} [description]
 		 */
 		bind : function(){
-			parseElement(document.documentElement);
-			// Create an observer instance linked to the callback function
-			var observer = new MutationObserver( onDOMChange );
+			_bindElement_(document.documentElement);
 			// observe the document topMost element
-			observer.observe(document.documentElement, { attributes: false, childList: true , subtree:true, characterData:false});
+			_OBSERVER_.observe(document.documentElement, { attributes: false, childList: true , subtree:true, characterData:false});
+		},
+
+		unbind : function(element = document.documentElement ){
+
+			if( _BINDINGS_.elements.has(element) ){
+				let value = _BINDINGS_.elements.get(element);
+				console.log(value)
+				if( element.nodeType === Node.TEXT_NODE ){
+					element.textContent = value;
+				}else{
+					for(let attr in value){
+						if( !value.hasOwnProperty(attr) ) continue;
+						element.setAttribute( attr , value[attr] )
+					}
+				}
+				_unbindEvent_( element );
+				_unbindElement_( element );
+			}
+
+			if( element.childNodes.length) element.childNodes.forEach( e=> Template.unbind(e) );
+
+			if( element === document.documentElement) _OBSERVER_.disconnect();
 		},
 
 		/**
@@ -571,6 +609,11 @@ const Template = (function(){
 				return false;
 			},
 
+			/**
+			 * [stringHasSpaces description]
+			 * @param  {[type]} string [description]
+			 * @return {[type]}        [description]
+			 */
 			stringHasSpaces: function(string){
 				if( typeof string !== 'string'){
 					throw new Error('Template.Util.stringHasSpaces() : Provided value is not a String');
@@ -608,7 +651,7 @@ const Template = (function(){
 			},
 
 			/**
-			 * Template.Util.getPlaceholdersFromString(): Return an array with all the tokens found in the
+			 * Template.Util.getStringPlaceholders(): Return an array with all the tokens found in the
 			 * provided String. If no tokens are found returns an empty array.
 			 *
 			 * @param  {String}  string                 String to analyze
@@ -616,17 +659,45 @@ const Template = (function(){
 			 *
 			 * @return {Array}                          Array of tokens
 			 */
-			getPlaceholdersFromString( string = '', stripDelimiters = false ){
+			getStringPlaceholders( string = '' ){
 				// extract all placeholders from string
 				let placeholders =  string.match( expresion.tokenMatch ) || [];
 				// remove duplicates!
 				placeholders = Array.from( new Set(placeholders) );
-				// if strip delimiters filter has been requested, strip delimiters
-				if( stripDelimiters ) placeholders = placeholders.map( current => Template.Util.removePlaceholderDelimiters(current) );
+				placeholders = placeholders.map( current => Template.Util.removePlaceholderDelimiters(current) );
 				// strip delimiters from token...
 				return placeholders;
 			},
 
+			/**
+			 * [getTemplatePlaceholders description]
+			 * @param  {[type]} element [description]
+			 * @return {[type]}         [description]
+			 */
+			getTemplatePlaceholders : function( element ){
+				// inspect Attributes
+				let placeholders = [];
+
+				if( _BINDINGS_.elements.has( element ) ){
+					// get all stringTokens in current Element Attribute Template
+					let attributes = _BINDINGS_.elements.get( element );
+					for(let currentAttr in attributes){
+						if( !attributes.hasOwnProperty(currentAttr) ) continue;
+						let placeholdersPartial = Template.Util.getStringPlaceholders(  attributes[currentAttr] ) ;
+
+						if( Template.Util.binderExists( currentAttr ) && !placeholdersPartial.lenght ){
+							// if value is quoted, call binder[bindername].subscribte
+							// with the quoted value
+							let v = attributes[currentAttr].trim();
+							if( v.slice(0,1) === '\'' && v.slice(-1) === '\'') continue;
+							// if is a Binder Attribute (eg: pg-model), extract the value
+							else placeholdersPartial = [ v ];
+						}
+						placeholders = placeholders.concat( placeholdersPartial );
+					}
+				}
+				return placeholders;
+			},
 
 			/**
 			 * [Template.Util.populateStringPlaceholders description]
@@ -637,7 +708,7 @@ const Template = (function(){
 			 */
 			populateStringPlaceholders( string = ''){
 				// retrieve all the placeholders contained in the string
-				let placeholders = Template.Util.getPlaceholdersFromString( string, true );
+				let placeholders = Template.Util.getStringPlaceholders( string );
 				// iterate each placeholder
 				placeholders.forEach( placeholder=>{
 					let model = Template.Util.resolveKeyPath( placeholder );
@@ -702,7 +773,7 @@ const Template = (function(){
 				// iterate the childNodes of the element
 				element.childNodes.forEach( childNode=>{
 	    		    if( childNode.nodeType === Node.TEXT_NODE ) {
-	    		    	let tokens = Template.Util.getTextNodeTokens( childNode , searchInTemplate);
+	    		    	let tokens = Template.Util.getTextNodePlaceholders( childNode , searchInTemplate);
 						// execute the callback with  each found token
 						tokens.forEach( tokenName=> callback(childNode, tokenName) )
 						// done! ready, for search in the next element childNode
@@ -712,23 +783,23 @@ const Template = (function(){
 				return true;
 			},
 
-			getTextNodeTokens( texNode, searchInTemplate=false ){
-				let tokens = [];
+			getTextNodePlaceholders( texNode, searchInTemplate=false ){
+				let placeholders = [];
 				// Scan only textNodes
 		    	if(searchInTemplate){
-	    			// if requested, search for tokens in the template
-		    		if( bindingTables.elements.has(texNode) ){
-		    			tokens = Template.Util.getPlaceholdersFromString( bindingTables.elements.get(texNode) , true);
+	    			// if requested, search for placeholders in the template
+		    		if( _BINDINGS_.elements.has(texNode) ){
+		    			placeholders = Template.Util.getStringPlaceholders( _BINDINGS_.elements.get(texNode) );
 		    		}
 		    	}else{
-					// ...or search for tokens in the textNode current value
-					tokens = Template.Util.getPlaceholdersFromString(texNode.nodeValue, true);
+					// ...or search for placeholders in the textNode current value
+					placeholders = Template.Util.getStringPlaceholders(texNode.nodeValue );
 				}
-				return tokens;
+				return placeholders;
 			},
 
             exposeBindings: function(){
-                console.log(bindingTables)
+                console.log(_BINDINGS_)
             }
 		},
 
