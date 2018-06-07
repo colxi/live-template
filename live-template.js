@@ -2,12 +2,13 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-06-03 11:01:19
+* @Last Modified time: 2018-06-04 12:49:27
 */
-'use strict';
+
 
 // inject CSS
 const Template = (function(){
+	"use strict";
 
 	const _DEBUG_ = function( ...msg ){
 		if( _CONFIG_.debugMode ) console.log( ...msg );
@@ -46,7 +47,7 @@ const Template = (function(){
 	const _MODELS_ = new Proxy( {} , {
 		set : function(obj, modelName, modelContents){
 			// if value is not an Object throw an error
-			if( !(modelContents instanceof Object) ) throw new Error('new Model must be an object!')
+			if( !(modelContents instanceof Object) ) throw new Error('new Model must be an object!');
 			// if model name already declared attach new properties, if not
 			// exists yet, create it.
 			if( obj[modelName] ) Object.assign( obj[modelName], modelContents );
@@ -85,6 +86,7 @@ const Template = (function(){
 			*/
 		},
 		events : new WeakMap(),
+		iterators : new WeakMap(),
 		elements : new WeakMap()
 		    /*
 			elementReference : {
@@ -142,23 +144,26 @@ const Template = (function(){
 							let attr_list = _BINDINGS_.elements.get(element);
 							for(let attr in attr_list){
 								//
-								if( Template.Util.binderExists(attr) ){
+								if( Template.Util.isCustomBinder(attr) ){
 									let _model = Template.Util.resolveKeyPath( attr_list[attr] );
-									let bindingFn = attr.split('-')[1];
-									binders[bindingFn].subscribe(element,_model.context,_model.key , _model.context[_model.key]);
+									let bindingFn = attr.split('-');
+									binders[ bindingFn[1] ].subscribe(element, _model.context, _model.key , _model.context[_model.key] , bindingFn.slice(1) );
 								}else{
 									if( !attr_list.hasOwnProperty(attr) ) continue;
 									if(attr !== 'textNode')  element.setAttribute( attr,  Template.Util.populateStringPlaceholders( attr_list[attr], model ) );
 								}
 							}
 						}
+
+
+
 					});
 				}
 				return true;
 			},
 
 			get : function(model, tokenName){
-				return model[tokenName]
+				return model[tokenName];
 			}
 		} );
 
@@ -168,81 +173,134 @@ const Template = (function(){
 	};
 
 
+	const  _bindElement__customBinder_ = function( element , customBinderName ){
+		// get the value of the customBinder attribute
+		let stringValue = element.getAttribute( customBinderName ).trim();
+		// split the customBinder Name in tokens  -> 'pg-on-click' = ['pg','on', 'click']
+		let customBinder = customBinderName.split('-');
+
+	    if( Template.Util.isStringQuoted( stringValue ) ){
+			// if value is quoted, call binder[customBinder].subscribte
+			// with the quoted value (quotes stripped)
+	        binders[ customBinder[1] ].subscribe( element, undefined, undefined, stringValue.slice(1, -1) , customBinder.slice(1));
+	        // TODO...
+	        // don't perform BINDING! (there is no variable value to bind)
+		}
+		else{
+			// TODO: stringValue can contain multiple placeHolders... right now it
+			// only takes and proces the first one.. MUST HANDLE AS MANY AS DETECTED!
+			let placeholder = stringValue;
+
+			_bindPlaceholder_(element, placeholder);
+			_bindElement__addAttribute_( element , customBinderName , stringValue)
+
+
+			// get placeholder model context
+			let model = Template.Util.resolveKeyPath(placeholder);
+
+			// determine the apropiate binder (if requested binder does not exist call default one)
+			let binder = binders.hasOwnProperty(customBinder[1]) ? binders[customBinder[1]] : binders.default;
+			// bind and subscribe
+			binder.bind(element,model.context, model.key, model.context[model.key] ,  customBinder.slice(1) );
+			binder.subscribe( element, model.context, model.key, model.context[model.key], customBinder.slice(1) );
+		}
+		return true;
+	}
+
+	const _bindElement__addAttribute_ = function( element, attribute, value){
+		// if current Element already has attribute bindings...
+		if( _BINDINGS_.elements.has(element) ){
+			// update the entry for the current element in the
+			// Bindings Element index with the new attribute and its Template String
+			let bindedAttributes = _BINDINGS_.elements.get(element);
+			bindedAttributes[ attribute ] = value;
+			_BINDINGS_.elements.set(element,bindedAttributes );
+		}else{
+			// if it's not yet in the Bindings Element index, add
+			// a new entry with the attribute name and value
+			_BINDINGS_.elements.set(element , { [ attribute ] : value } );
+		}
+		return true;
+	}
+
 	/**
 	 * [_bindElement_ description]
 	 * @param  {[type]} element [description]
 	 * @return {[type]}         [description]
 	 */
 	const _bindElement_ = function( element ){
-		/*
-			TWO DIFFERENT PARTS OF EACH ELEMENT CAN CONTAIN TEMPLATE TOKENS
-			Those are : Element Attributes, and TextNodes. Analize first Element
-			Attributes, perform necessary bindings, and continue analyzing the
-			textNodes, and perform again the required bindings.
-		 */
+		// container to store all detected bindings, to initialize them when
+		// the binding is completed (it can't be done on the fly because it could
+		// destroy the template, before is stored)
+		let uninitializedPlaceholders = [];
 
-		// iterate each attribute of the element looking for templating placeholders,
-		// or attribute  binders ...
+		let blockBindingNested = false;
 
-		let parsedTokenNames= [];
-		for(let attr in element.attributes){
-			// block if attrName is not a property
-			if( !element.attributes.hasOwnProperty(attr) ) continue;
+		if( element.nodeType === Node.ELEMENT_NODE ){
+			// Iterate each Element attribute
+			for(let attr in element.attributes){
+				// block if attrName is not a property
+				if( !element.attributes.hasOwnProperty(attr) ) continue;
 
-			// get all the placeholders in attribute in an array
-			let placeholders = Template.Util.getStringPlaceholders( element.attributes[attr].value );
+				// collect all the placeholders from the attribute in an array
+				let placeholders = Template.Util.getStringPlaceholders( element.attributes[attr].value );
+				// and store them to in the list of placeholders to initialize
+				uninitializedPlaceholders = uninitializedPlaceholders.concat( placeholders )
 
-			if( Template.Util.binderExists( element.attributes[attr].name ) && !placeholders.lenght ){
-				// if value is quoted, call binder[bindername].subscribte
-				// with the quoted value
-				let v = element.attributes[attr].value.trim();
-                if( v.slice(0,1) === '\'' && v.slice(-1) === '\''){
-                    let binder = ( element.attributes[attr].name.split('-') )[1];
-                    binders[binder].subscribe(element, undefined, undefined, v.slice(1, -1) )
+				// if current attribute is a Custom Binder.. perform custom binding
+				if( Template.Util.isCustomBinder( element.attributes[attr].name ) ){
+					_bindElement__customBinder_( element , element.attributes[attr].name );
+					let customBinder = element.attributes[attr].name.split('-')[1];
+					if( binders.hasOwnProperty(customBinder) && binders[customBinder].block === true ) blockBindingNested = true;
+					continue;
 				}
-				// if is a Binder Attribute (eg: pg-model), extract the value
-				else placeholders = [ v ];
+
+				// iterate all placeholders detected in the attribute value
+				// and perform the binding of each one
+				placeholders.forEach( placeholder=>{
+					let model = Template.Util.resolveKeyPath(placeholder);
+					_bindElement__addAttribute_( element , element.attributes[attr].name , element.attributes[attr].value );
+					// bind the element with the placeholder
+					_bindPlaceholder_(element, placeholder);
+				});
 			}
+		};
+		if( !blockBindingNested ){
+			// get all the textNodes (if current node is a textNode only operate with
+			// it), retrieve the placeholder within, and bind them to the element
+			Template.Util.getElementTextNodes( element ).forEach( textNode =>{
+				Template.Util.getTextNodePlaceholders( textNode ).forEach( placeholder =>{
+					 uninitializedPlaceholders.push( placeholder )
 
-			// iterate all placeholders
-			placeholders.forEach( tokenName=>{
-				let model = Template.Util.resolveKeyPath(tokenName);
+					_BINDINGS_.elements.set(textNode, textNode.nodeValue );
+					_bindPlaceholder_(textNode, placeholder);
+				});
+			});
 
-				if( _BINDINGS_.elements.has(element) ){
-					let table = _BINDINGS_.elements.get(element);
-					table[ element.attributes[attr].name ] = element.attributes[attr].value;
-					_BINDINGS_.elements.set(element,table );
-				}else _BINDINGS_.elements.set(element , { [element.attributes[attr].name] : element.attributes[attr].value } );
-
-				// bind the element with the token
-				_bindPlaceholder_(element, tokenName);
-				parsedTokenNames.push(tokenName);
-				let binderName = element.attributes[attr].name.split('-');
-				let binderPrefix = binderName[0];
-				if(binderPrefix === _CONFIG_.binderPrefix){
-					if( !binders.hasOwnProperty(binderName[1]) ) binders.default.bind(element,model.context, model.key, [ binderName[1] , binderName[2] ] );
-					else binders[binderName[1]].bind(element,model.context, model.key,  [ binderName[1] , binderName[2] ] );
-				}
-			})
+			// if element has childnodes and are Element Nodes (text nodes have already
+			// been binded), bind them recursively
+			if( element.childNodes.length) element.childNodes.forEach( childNode =>{
+				if( childNode.nodeType === Node.ELEMENT_NODE ) _bindElement_( childNode )
+			});
 		}
-		Template.Util.forEachTextNodeToken(element, (childNode, tokenName) =>{
-			// register the textNode in the _BINDINGS_ registry
-			_BINDINGS_.elements.set(childNode, childNode.nodeValue );
-			// bind the element with the tokem
-			_bindPlaceholder_(childNode, tokenName);
-			parsedTokenNames.push(tokenName);
-		})
-		parsedTokenNames.forEach( tokenName => {
-			let model = Template.Util.resolveKeyPath(tokenName);
-			model.context[model.key] =model.context[model.key]
-		} )
-		if( element.childNodes.length) element.childNodes.forEach( e=> _bindElement_(e) );
-		return true;
-	}
 
+		// no more tasks pending! initialize placeholders in element!
+		uninitializedPlaceholders.forEach( placeholder => {
+			let model = Template.Util.resolveKeyPath(placeholder);
+			model.context[model.key] =model.context[model.key];
+		} );
+		// done!
+		return true;
+	};
+
+
+	/**
+	 * [_bindPlaceholder_ description]
+	 * @param  {[type]} element     [description]
+	 * @param  {[type]} placeholder [description]
+	 * @return {[type]}             [description]
+	 */
 	const _bindPlaceholder_ = function( element , placeholder ){
-		// block if element is not a HTMLElement intance
-		if( !(element instanceof HTMLElement) && !(element instanceof Node) ) throw new Error('HTMLElement has to be provided');
 		// block if no binding name has been provided
 		if( placeholder.trim() === undefined ) throw new Error('Imposible to perform binding. Binding name not provided in Element');
 
@@ -269,10 +327,10 @@ const Template = (function(){
 
 			Object.defineProperty(window, model.key, {
 				set: function(value) {
-					_MODELS_._root[model.key] = value
+					_MODELS_._root[model.key] = value;
 				},
 				get: function() {
-					return _MODELS_._root[model.key]
+					return _MODELS_._root[model.key];
 				},
                 configurable : true,
                 enumerable: true
@@ -284,7 +342,7 @@ const Template = (function(){
 
 		// done!
 		return true;
-	}
+	};
 
 	const _bindEvent_ = function(element, type, handler){
 		let bindedEvents = {};
@@ -298,7 +356,7 @@ const Template = (function(){
 				if( !bindedEvents.hasOwnProperty(event) ) continue;
 				// already binded! Error!
 				// TODO : handle situation
-				if( event === type ) throw new Error('Element has already another event of the same type binded! Unexpected!')
+				if( event === type ) throw new Error('Element has already another event of the same type binded! Unexpected!');
 			}
 		}
 		// Include the the event to the element binded events object
@@ -320,7 +378,10 @@ const Template = (function(){
 		switch( element.nodeType ){
     		case Node.TEXT_NODE : {
     			let tokens = Template.Util.getTextNodePlaceholders(element,true);
-        		tokens.forEach( placeholder => _unbindPlaceholder_( element,placeholder ) );
+        		tokens.forEach( placeholder =>{
+	            	//_unbindEvent_( element );
+        			_unbindPlaceholder_( element,placeholder );
+        		});
         		break;
         	}
     		case Node.ELEMENT_NODE : {
@@ -330,21 +391,43 @@ const Template = (function(){
             	all.push(element);
             	all.forEach( child =>{
 
-	            	// unbind all events
-	            	_unbindEvent_( child );
+            		for(let attr in child.attributes){
+						// block if attrName is not a property
+						if( !child.attributes.hasOwnProperty(attr) ) continue;
 
-            		let tokens = Template.Util.getTemplatePlaceholders(child);
+						// if current attribute is a Custom Binder.. perform custom binding
+						if( Template.Util.isCustomBinder( child.attributes[attr].name ) ){
+							if( Template.Util.isStringQuoted( child.attributes[attr].value ) ) continue;
+
+							let model = Template.Util.resolveKeyPath( child.attributes[attr].value );
+
+							let binderName = child.attributes[attr].name.split('-');
+							let binder = binders.hasOwnProperty( binderName[1] ) ? binders[ binderName[1] ] : binders.default;
+							binder.unbind( child , model.context , model.key, model.context[ model.key ], binderName.slice(1) );
+						}
+					}
+
+
+
+
+
+	            	// unbind all events
+	            	//_unbindEvent_( child );
+	            	let tokens = Template.Util.getTemplatePlaceholders(child);
             		tokens.forEach( placeholder => _unbindPlaceholder_( child,placeholder ) );
+
+            		let textNodes = Template.Util.getElementTextNodes( child );
+            		textNodes.forEach( _unbindElement_ );
 					// TEXTCONTENT SEARCH (TEMPLATE)
-            		Template.Util.forEachTextNodeToken(child, _unbindPlaceholder_ , true)
+            		//Template.Util.forEachTextNodeToken(child, _unbindPlaceholder_ , true)
+            		//
             	});
             	break;
             }
     		default : {
-    			_DEBUG_('onDOMChange() : Unimplemented type of Node : ' + element.nodeType.toString() );
+    			_DEBUG_('onDOMChange() : Unimplemented type of Node : ' + element.nodeType.toString() ,element);
     		}
     	}
-    	_BINDINGS_.elements.delete( element );
     	return true;
 	};
 
@@ -354,7 +437,8 @@ const Template = (function(){
 			if (index !== -1)  _BINDINGS_.placeholders[placeholder].splice(index, 1);
 			if( !_BINDINGS_.placeholders[placeholder].length ){
 				_BINDINGS_.placeholders[placeholder] = null;
-				delete _BINDINGS_.placeholders[placeholder]
+				delete _BINDINGS_.placeholders[placeholder];
+				//_BINDINGS_.elements.delete( element )
 			}
 		}
 	}
@@ -396,25 +480,28 @@ const Template = (function(){
 	let binders = {
 		// pg-value
 		value : {
-			bind : function(element,model,key){
+			bind : function(element, model, key , value , binderType){
+				console.log("binding FOR: pg-value")
 				_bindEvent_( element, 'input', e=>this.publish(element, model , key, e.target.value) );
 			},
-			unbind : function(){},
-			publish : function(element, model, key, value){
+			unbind : function( element, model, key , value , binderType){
+				console.log("unbinding FOR: pg-value")
+				_unbindEvent_( element , 'input' );
+			},
+			publish : function(element, model, key , value , binderType){
 				// change in DOM must be setted to _MODELS_ Object
 				model[key] = value;
 			},
-			subscribe : function(element, model, key, value){
+			subscribe : function(element, model, key , value , binderType){
                 // change in object must be reflected in DOM
 				element.value = value || '' ;
 			},
 		},
 		if : {
-			bind : function(element,model,key){
-			},
-			unbind : function(){},
-			publish : function(element, model, key, value){},
-			subscribe : function(element, model, key, value){
+			bind : function(element, model, key , value , binderType){},
+			unbind : function( element, model, key , value , binderType ){},
+			publish : function(element, model, key , value , binderType){},
+			subscribe : function(element, model, key , value , binderType){
 				// handle "true" "false" strings and "0" and "1" stringss
                 if(value) value = JSON.parse(value);
                 // show the element if value is True, or any other value not
@@ -427,20 +514,25 @@ const Template = (function(){
 			},
 		},
 		model : {
-			bind : function(element,model,key){},
-			unbind : function(){},
-			publish : function(element, model, key, value){},
-			subscribe : function(element, model, key, value){
+			bind : function(element, model, key , value , binderType){},
+			unbind : function( element, model, key , value , binderType ){},
+			publish : function(element, model, key , value , binderType){},
+			subscribe : function(element, model, key , value , binderType){
+
                 Template.loadModel( value )
             },
 		},
         view : {
-            bind : function(element,model,key,value){
-            },
-            unbind : function(){},
-            publish : function(element, model, key, value){},
-            subscribe : function(element, model, key, value){
-                element.innerHTML = '';
+            bind : function(element, model, key , value , binderType){},
+            unbind : function(element, model, key , value , binderType){  },
+            publish : function(element, model, key , value , binderType){},
+            subscribe : function(element, model, key , value , binderType){
+                console.log('subscribe view', value)
+                //element.innerHTML = '';
+                while(element.firstChild){
+				    element.removeChild(element.firstChild);
+				}
+
                 if( value && value.length ){
                     Template.loadView( value ).then( html =>{
                         if(html !== false) element.innerHTML = html;
@@ -454,26 +546,53 @@ const Template = (function(){
             },
         },
 		select : {
-			bind : function(element,model,key){
+			bind : function(element, model, key , value , binderType){
+				//
 				model[key] = element;
+
 			},
-			unbind : function(){},
-			publish : function(element, model, key, value){},
-			subscribe : function(element, model, key){},
+			unbind : function(element, model, key , value , binderType){
+				model[key] = null;
+				model[key] = undefined;
+				return true;
+			},
+			publish : function(element, model, key , value , binderType){},
+			subscribe : function(element, model, key , value , binderType){},
 		},
 		on : {
-			bind : function(element,model,key, attrName){
-				_bindEvent_( element, attrName[1], e=> model[key](e) );
+			bind : function(element, model, key , value , binderType){
+				console.log("binding FOR on-"+binderType[1], model[key])
+				_bindEvent_( element, binderType[1], e=>model[key](e) );
 			},
-			unbind : function(){},
-			publish : function(element, model, key, value){},
-			subscribe : function(element, model, key, value){},
+			unbind : function(element, model, key , value , binderType){
+				console.log("unbinding FOR on-"+binderType[1]);
+				_unbindEvent_( element , binderType[1] );
+
+			},
+			publish : function(element, model, key , value , binderType){},
+			subscribe : function(element, model, key , value , binderType){},
 		},
-		each : {},
+		for : {
+			block : true,
+			bind : function(element, model, key , value , binderType){
+				console.log('binding FOR for-'+binderType[1]);
+				let content = element.innerHTML;
+				element.innerHTML = '';
+				window.asd = content;
+			},
+			unbind : function( element, model, key , value , binderType ){},
+			publish : function(element, model, key , value , binderType){},
+			subscribe : function(element, model, key , value , binderType){
+				console.log( "susbscribe FOR for-"+binderType[1] );
+				for( let i=0; i< Object.keys(value).length; i++){
+					element.innerHTML += window.asd.replace(binderType[1], 'myApp.collection.'+i);
+				}
+			},
+		},
 		// pg-unknown :  undeclared binders perform default action...
 		default : {
-			bind: function(element,model,key,binderName){
-				_DEBUG_('DEFAULT BINDER bind():',element,model,key,binderName)
+			bind: function(element, model, key , value , binderType){
+				_DEBUG_('DEFAULT BINDER bind():',element,model,key,binderType)
 			}
 		}
 	}
@@ -502,7 +621,6 @@ const Template = (function(){
 						element.setAttribute( attr , value[attr] )
 					}
 				}
-				_unbindEvent_( element );
 				_unbindElement_( element );
 			}
 
@@ -573,8 +691,6 @@ const Template = (function(){
 				// insert the Script element to trigger the module load
 				document.documentElement.appendChild(script);
 			});
-			// done. Promise will be resolved when model Module is loaded
-			return true;
 		},
 
 		/**
@@ -609,6 +725,20 @@ const Template = (function(){
 				return false;
 			},
 
+			getElementTextNodes : function(element){
+				let textNodes = [];
+				// if element is a TextNode return itself inside an aeeay
+				if( element.nodeType === Node.TEXT_NODE ) textNodes.push( element );
+				else{
+					// is element is a Scrip or Style return empty array (don't analyze them)
+					if( element.tagName === 'SCRIPT' && element.tagName === 'STYLE') return textNodes;
+					// else... insert all textnodes inside the array
+					element.childNodes.forEach( childNode=>{
+		    		    if( childNode.nodeType === Node.TEXT_NODE ) textNodes.push( childNode );
+					});
+				}
+				return textNodes;
+			},
 			/**
 			 * [stringHasSpaces description]
 			 * @param  {[type]} string [description]
@@ -621,19 +751,27 @@ const Template = (function(){
 				return /\s/.test( string );
 			},
 
+			isStringQuoted: function( string ){
+				string = string.trim();
+				let firstChar 	= string.slice(0,1);
+				let lastChar 	= string.slice(-1);
+
+			  	if( ( firstChar === '\'' && lastChar === '\'') || ( firstChar === '"' && lastChar === '"') 	) return true;
+			  	else return false;
+			},
+
 			/**
-			 * Template.Util.binderExists() : If the attribute name has a binder name syntax
+			 * Template.Util.isCustomBinder() : If the attribute name has a binder name syntax
 			 * structure return the binder name, if not , return false
 			 *
 			 * @param  {[type]}  attrName [description]
 			 * @return {Boolean}          [description]
 			 */
-			binderExists( attrName ){
+			isCustomBinder( attrName ){
 				//
                 let binderNameParts = attrName.split('-');
                 if ( binderNameParts[0] !== _CONFIG_.binderPrefix ) return false;
-                if( binders.hasOwnProperty( binderNameParts[1] ) ) return true;
-                else return false;
+                else return true;
 
 				//return ( attrName.substring(0, (_CONFIG_.binderPrefix.length+1)) == _CONFIG_.binderPrefix + "-") ? attrName.substring(3) : false;
 			},
@@ -685,11 +823,11 @@ const Template = (function(){
 						if( !attributes.hasOwnProperty(currentAttr) ) continue;
 						let placeholdersPartial = Template.Util.getStringPlaceholders(  attributes[currentAttr] ) ;
 
-						if( Template.Util.binderExists( currentAttr ) && !placeholdersPartial.lenght ){
+						if( Template.Util.isCustomBinder( currentAttr ) && !placeholdersPartial.lenght ){
 							// if value is quoted, call binder[bindername].subscribte
 							// with the quoted value
 							let v = attributes[currentAttr].trim();
-							if( v.slice(0,1) === '\'' && v.slice(-1) === '\'') continue;
+							if( Template.Util.isStringQuoted( v ) )continue;
 							// if is a Binder Attribute (eg: pg-model), extract the value
 							else placeholdersPartial = [ v ];
 						}
@@ -758,29 +896,6 @@ const Template = (function(){
 				}
 				// done!
 				return result;
-			},
-
-			/**
-			 * [forEachTextNodeToken description]
-			 * @param  {[type]}   element  [description]
-			 * @param  {Function} callback [description]
-			 * @return {[type]}            [description]
-			 */
-			forEachTextNodeToken(element, callback, searchInTemplate=false){
-				// ignore Script and Style contents...
-				if( element.tagName === 'SCRIPT' && element.tagName === 'STYLE') return false;
-
-				// iterate the childNodes of the element
-				element.childNodes.forEach( childNode=>{
-	    		    if( childNode.nodeType === Node.TEXT_NODE ) {
-	    		    	let tokens = Template.Util.getTextNodePlaceholders( childNode , searchInTemplate);
-						// execute the callback with  each found token
-						tokens.forEach( tokenName=> callback(childNode, tokenName) )
-						// done! ready, for search in the next element childNode
-				    }
-				});
-				//done!
-				return true;
 			},
 
 			getTextNodePlaceholders( texNode, searchInTemplate=false ){

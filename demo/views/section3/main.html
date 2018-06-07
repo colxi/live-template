@@ -4,16 +4,17 @@
 <input type="button" value="Delete Block" pg-on-click="section3.deleteBlock">
 <input type="button" value="Load Images" pg-on-click="section3.loadView">
 
-<div pg-select="myApp.container" pg-if="myCondition" style="padding:40px;">
+<div style="padding:40px;">
 	<div>
-		<input style="color:${myColor}" type="text" pg-value="myModel.Comment">
-		<textarea style="color: ${myModel.myColor}" pg-value="myModel.Comment"></textarea>
+		<input type="text" pg-value="myModel.Comment">
+		<textarea pg-value="myModel.Comment"></textarea>
 		<select name="example" pg-value="myModel.mySelect">
 	    	<option value="">Other</option>
 	    	<option value="A">A</option>
 	    	<option value="B">B</option>
 		</select>
 	</div>
-	<div pg-view="'section3/card'"></div>
 
+
+	<div pg-view="'section3/card'"></div>
 </div>
