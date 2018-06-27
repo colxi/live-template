@@ -1,8 +1,8 @@
 /*
 * @Author: colxi.kl
 * @Date:   2018-06-03 03:29:45
-* @Last Modified by:   colxi.kl
-* @Last Modified time: 2018-06-03 20:49:48
+* @Last Modified by:   colxi
+* @Last Modified time: 2018-06-22 14:20:44
 */
 
 window.onload =  ()=>{
@@ -14,10 +14,6 @@ window.onload =  ()=>{
         setSection2 : function(){ myApp.section = 'section2/main'},
         setSection3 : function(){ myApp.section = 'section3/main'},
         section : 'section1/main',
-        collection : [
-        	{ name: 'Fiodor' , surname : 'Dovstoyevsky' },
-        	{ name: 'Albert' , surname : 'Camus' },
-        	{ name: 'Frank' , surname : 'Kafka' }
-        ],
+
 	});
 }
