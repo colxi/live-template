@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-06-27 12:55:18
+* @Last Modified time: 2018-06-27 18:29:44
 */
 
 
@@ -10,13 +10,14 @@
 const Template = (function(){
     'use strict';
 
-    const _DEBUG_ = function( ...msg ){
-        if( _CONFIG_.debugMode ) console.log( ...msg );
-    };
-
-
     const _CONFIG_ = {
         debugMode               : true,
+        debugStyles             : {
+            red     : 'red',
+            green   : 'green',
+            yellow  : 'yellow',
+            orange  : 'orange',
+        },
         binderPrefix            : 'pg',
         placeholderDelimitiers  : ['${' , '}'],
         modelsNamesExtension    : '.js',
@@ -24,6 +25,32 @@ const Template = (function(){
         modelsPath              : './models/',
         viewsPath               : './views/'
     };
+
+
+    // <-- DEBUG METHODS
+    const _DEBUG_ = function( ...msg ){
+        if( _CONFIG_.debugMode ) console.log( ...msg );
+    };
+    _DEBUG_.applyStyle = function(style, ...args){
+        let items =[];
+        if( typeof args[1] === 'string' ){
+            items.push( '%c' + args[1] );
+            items.push( style );
+        }else items.push( args[1] );
+
+        let tmp= Array.prototype.slice.call(args ,1);
+        items = items.concat(tmp);
+
+        _DEBUG_( ...items );
+    };
+    _DEBUG_.red = function(...args){ _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.red + ';' , ...args ) };
+    _DEBUG_.green = function(...args){ _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.green + ';' , ...args ) };
+    _DEBUG_.yellow = function(...args){ _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.yellow + ';' , ...args ) };
+    _DEBUG_.orange = function(...args){ _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.orange + ';' , ...args ) };
+    // endof DEBUG METHODS  -->
+
+
+    _DEBUG_.red('rest','ddf','ggdff',{}, 'dghff')
 
 
     let _OBSERVER_ = new MutationObserver( mutationsList => {
@@ -111,7 +138,7 @@ const Template = (function(){
      * @return {[type]}               [description]
      */
     const _createModel_ = function( modelContents, keyPath){
-        console.log('****creating model for' ,keyPath,modelContents)
+        console.log('****creating model for' ,keyPath,modelContents);
         if(Array.isArray(modelContents) ) console.log('is array', modelContents);
         let level =  new Proxy(  Array.isArray(modelContents) ? []:{} , {
             set : function(model, tokenName, value){
@@ -124,22 +151,22 @@ const Template = (function(){
 
                         console.log('Object already exists...' );
                         if( _TEMPLATES_.iterators.has( model[tokenName] ) ){
-                            console.log('has a iterator binding')
+                            console.log('has a iterator binding');
                             oldBinding = _TEMPLATES_.iterators.get( model[tokenName] );
-                            console.log('old binding',oldBinding)
+                            console.log('old binding',oldBinding);
                             _TEMPLATES_.iterators.delete( model[tokenName] );
-                        }else console.log('hassss noooooo binding iterator')
+                        }else console.log('hassss noooooo binding iterator');
                         //Object.assign( model[tokenName] , value);
                     }
                     model[tokenName] = _createModel_(value , keyPath+tokenName+'.');
                     if(oldBinding){
-                        console.log('reasigning old iterator binding t new object',oldBinding)
+                        console.log('reasigning old iterator binding t new object',oldBinding);
                         let _model =Template.Util.resolveKeyPath(keyPath+tokenName );
-                        _TEMPLATES_.iterators.set( model[tokenName] , oldBinding)
+                        _TEMPLATES_.iterators.set( model[tokenName] , oldBinding);
                         let elements = _TEMPLATES_.iterators.get( _model.context[_model.key]);
                         let i = 0;
-                        binders.for.subscribe(elements[i].element, _model.context, _model.key, _model.context[_model.key], elements[i].binderType)
-                    };
+                        binders.for.subscribe(elements[i].element, _model.context, _model.key, _model.context[_model.key], elements[i].binderType);
+                    }
                 }else{
                     model[tokenName] = value;
                     // check if exist any binded element wich value has to be updated
@@ -183,9 +210,9 @@ const Template = (function(){
                         if(_TEMPLATES_.iterators.has( _model.context[_model.key]) ){
                             let elements = _TEMPLATES_.iterators.get( _model.context[_model.key]);
                             let i = 0;
-                            console.log(elements)
+                            console.log(elements);
                             binders.for.subscribe(elements[i].element, _model.context, _model.key, _model.context[_model.key], elements[i].binderType)
-                        }else console.log('is member of an array but has no iteration binders')
+                        }else console.log('is member of an array but has no iteration binders');
                     }
                 }
                 return true;
@@ -221,7 +248,7 @@ const Template = (function(){
             let placeholder = stringValue;
 
             _bindPlaceholder_(element, placeholder);
-            _bindElement__addAttribute_( element , customBinderName , stringValue)
+            _bindElement__addAttribute_( element , customBinderName , stringValue);
 
 
             // get placeholder model context
@@ -234,7 +261,7 @@ const Template = (function(){
             binder.subscribe( element, model.context, model.key, model.context[model.key], customBinder.slice(1) );
         }
         return true;
-    }
+    };
 
     const _bindElement__addAttribute_ = function( element, attribute, value){
         // if current Element already has attribute bindings...
@@ -250,7 +277,7 @@ const Template = (function(){
             _TEMPLATES_.elements.set(element , { [ attribute ] : value } );
         }
         return true;
-    }
+    };
 
     /**
      * [_bindElement_ description]
@@ -274,7 +301,7 @@ const Template = (function(){
                 // collect all the placeholders from the attribute in an array
                 let placeholders = Template.Placeholder.getFromString( element.attributes[attr].value );
                 // and store them to in the list of placeholders to initialize
-                uninitializedPlaceholders = uninitializedPlaceholders.concat( placeholders )
+                uninitializedPlaceholders = uninitializedPlaceholders.concat( placeholders );
 
                 // if current attribute is a Custom Binder.. perform custom binding
                 if( Template.Util.isCustomBinderName( element.attributes[attr].name ) ){
@@ -287,19 +314,19 @@ const Template = (function(){
                 // iterate all placeholders detected in the attribute value
                 // and perform the binding of each one
                 placeholders.forEach( placeholder=>{
-                    let model = Template.Util.resolveKeyPath(placeholder);
                     _bindElement__addAttribute_( element , element.attributes[attr].name , element.attributes[attr].value );
                     // bind the element with the placeholder
                     _bindPlaceholder_(element, placeholder);
                 });
             }
-        };
+        }
+
         if( !blockBindingNested ){
             // get all the textNodes (if current node is a textNode only operate with
             // it), retrieve the placeholder within, and bind them to the element
             Template.Util.getElementTextNodes( element ).forEach( textNode =>{
                 Template.Placeholder.getFromString( textNode.nodeValue ).forEach( placeholder =>{
-                     uninitializedPlaceholders.push( placeholder )
+                    uninitializedPlaceholders.push( placeholder );
 
                     _TEMPLATES_.elements.set(textNode, textNode.nodeValue );
                     _bindPlaceholder_(textNode, placeholder);
@@ -309,7 +336,7 @@ const Template = (function(){
             // if element has childnodes and are Element Nodes (text nodes have already
             // been binded), bind them recursively
             if( element.childNodes.length) element.childNodes.forEach( childNode =>{
-                if( childNode.nodeType === Node.ELEMENT_NODE ) _bindElement_( childNode )
+                if( childNode.nodeType === Node.ELEMENT_NODE ) _bindElement_( childNode );
             });
         }
 
@@ -470,7 +497,7 @@ const Template = (function(){
                 //_TEMPLATES_.elements.delete( element )
             }
         }
-    }
+    };
 
     const _unbindEvent_ = function( element , event = '' ){
         // if element has event bindings...
@@ -495,14 +522,14 @@ const Template = (function(){
         }
         // done!
         return true;
-    }
+    };
 
 
 
     let expresion = {
         tokenMatch :  /\${[^{}]*}/g, // /(?<!\\)\${[^{}]*}/g,
         tokenReplace : '(?<!\\\\)\\${\\s*__TOKEN__\\s*}'
-    }
+    };
 
 
 
@@ -538,7 +565,7 @@ const Template = (function(){
                 if( value || value === undefined){
                     element.style.display = '';
                 }else{
-                    element.style.setProperty("display", "none", "important")
+                    element.style.setProperty("display", "none", "important");
                 }
             },
         },
@@ -548,7 +575,7 @@ const Template = (function(){
             publish : function(element, model, key , value , binderType){},
             subscribe : function(element, model, key , value , binderType){
 
-                Template.loadModel( value )
+                Template.loadModel( value );
             },
         },
         view : {
@@ -644,10 +671,10 @@ const Template = (function(){
         // pg-unknown :  undeclared binders perform default action...
         default : {
             bind: function(element, model, key , value , binderType){
-                _DEBUG_('DEFAULT BINDER bind():',element,model,key,binderType)
+                _DEBUG_('DEFAULT BINDER bind():',element,model,key,binderType);
             }
         }
-    }
+    };
 
     return {
         /**
@@ -670,7 +697,7 @@ const Template = (function(){
                 }else{
                     for(let attr in value){
                         if( !value.hasOwnProperty(attr) ) continue;
-                        element.setAttribute( attr , value[attr] )
+                        element.setAttribute( attr , value[attr] );
                     }
                 }
                 _unbindElement_( element );
@@ -759,10 +786,10 @@ const Template = (function(){
             //
             return new Promise( function(resolve,reject){
                 fetch(_CONFIG_.viewsPath + viewName + _CONFIG_.viewsNamesExtension)
-                .then( response =>{
-                    resolve( (response.ok === true ) ? response.text() : false );
-                });
-            })
+                    .then( response =>{
+                        resolve( (response.ok === true ) ? response.text() : false );
+                    });
+            });
         },
 
         /**
@@ -870,13 +897,13 @@ const Template = (function(){
                         context = context[ parts[i] ];
                     }
                     // generate the output object
-                    result = { context : context , key : bindName }
+                    result = { context : context , key : bindName };
                 }
                 // done!
                 return result;
             },
             exposeBindings: function(){
-                return _TEMPLATES_
+                return _TEMPLATES_;
             }
         },
 
@@ -888,7 +915,7 @@ const Template = (function(){
              */
             removeDelimiters( placeholder = '' ){
                 //
-                placeholder = placeholder.trim()
+                placeholder = placeholder.trim();
                 placeholder = placeholder.slice( _CONFIG_.placeholderDelimitiers[0].length, ( 0-_CONFIG_.placeholderDelimitiers[1].length ) )
                 return placeholder.trim();
             },
@@ -962,7 +989,7 @@ const Template = (function(){
                     // find te value of the Binding placeholder, in the provided model, and
                     // replace every placeholder reference in the string, with it
                     string = string.replace( search , (model.context[model.key] || '') );
-                })
+                });
                 // done! return parsed String
                 return string;
             }
@@ -970,7 +997,7 @@ const Template = (function(){
 
         /** CONFIGURATION */
         set Config( configObject ){
-            if( typeof configObject !== 'object' ) throw new Error('Template.Config : Provided value must be an Object.')
+            if( typeof configObject !== 'object' ) throw new Error('Template.Config : Provided value must be an Object.');
             for (let property in configObject){
                 if( !configObject.hasOwnProperty(property) ) continue;
                 this.Config[property] = configObject[property];
@@ -1050,7 +1077,7 @@ const Template = (function(){
                     return true;
                 },
 
-            }
+            };
         },
 
     };
