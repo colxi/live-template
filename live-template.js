@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-06-27 18:29:44
+* @Last Modified time: 2018-07-11 16:49:03
 */
 
 
@@ -16,6 +16,7 @@ const Template = (function(){
             red     : 'red',
             green   : 'green',
             yellow  : 'yellow',
+            darkyellow  : '#c9c91e',
             orange  : 'orange',
         },
         binderPrefix            : 'pg',
@@ -33,27 +34,25 @@ const Template = (function(){
     };
     _DEBUG_.applyStyle = function(style, ...args){
         let items =[];
-        if( typeof args[1] === 'string' ){
-            items.push( '%c' + args[1] );
+        if( typeof args[0] === 'string' ){
+            items.push( '%c' + args[0] );
             items.push( style );
-        }else items.push( args[1] );
+        }else items.push( args[0] );
 
         let tmp= Array.prototype.slice.call(args ,1);
         items = items.concat(tmp);
 
         _DEBUG_( ...items );
     };
-    _DEBUG_.red = function(...args){ _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.red + ';' , ...args ) };
-    _DEBUG_.green = function(...args){ _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.green + ';' , ...args ) };
+    _DEBUG_.red = function(...args){ /* _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.red + ';' , ...args ) */ };
+    _DEBUG_.green = function(...args){  _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.green + ';' , ...args )  };
     _DEBUG_.yellow = function(...args){ _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.yellow + ';' , ...args ) };
+    _DEBUG_.darkyellow = function(...args){ _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.darkyellow + ';' , ...args ) };
     _DEBUG_.orange = function(...args){ _DEBUG_.applyStyle( 'color:' + _CONFIG_.debugStyles.orange + ';' , ...args ) };
     // endof DEBUG METHODS  -->
 
 
-    _DEBUG_.red('rest','ddf','ggdff',{}, 'dghff')
-
-
-    let _OBSERVER_ = new MutationObserver( mutationsList => {
+    let _DOM_OBSERVER_ = new MutationObserver( mutationsList => {
         for(let mutation of mutationsList){
             if (mutation.type !== 'childList') continue;
             // first process Removed Nodes
@@ -63,6 +62,7 @@ const Template = (function(){
         }
         // done !
     });
+
 
     /**
      * _MODELS_ is a proxy wich grants acces to the models stored internally
@@ -75,6 +75,7 @@ const Template = (function(){
         set : function(obj, modelName, modelContents){
             // if value is not an Object throw an error
             if( !(modelContents instanceof Object) ) throw new Error('new Model must be an object!');
+
             // if model name already declared attach new properties, if not
             // exists yet, create it.
             if( obj[modelName] ) Object.assign( obj[modelName], modelContents );
@@ -86,6 +87,10 @@ const Template = (function(){
             return obj[modelName];
         }
     });
+
+    const newObservable = function(){
+
+    }
 
     /**
      * _TEMPLATES_ holds two indexes :
@@ -131,6 +136,7 @@ const Template = (function(){
         */
     };
 
+    window.prox= new WeakSet();
     /**
      * [_createModel_ description]
      * @param  {[type]} modelContents [description]
@@ -138,111 +144,134 @@ const Template = (function(){
      * @return {[type]}               [description]
      */
     const _createModel_ = function( modelContents, keyPath){
-        console.log('****creating model for' ,keyPath,modelContents);
-        if(Array.isArray(modelContents) ) console.log('is array', modelContents);
-        let level =  new Proxy(  Array.isArray(modelContents) ? []:{} , {
-            set : function(model, tokenName, value){
-                // if value to SET is an Object...
-                if( value instanceof Object && typeof value === 'object' && !(value instanceof HTMLElement) ){
-                    console.log( 'setting an Object', keyPath,tokenName,  value );
-                    // and property in _MODELS_ already exist and is an object, mix them...
-                    let oldBinding;
-                    if( model[tokenName] instanceof Object ){
+        _DEBUG_.yellow('Creating MODEL' , keyPath, modelContents);
 
-                        console.log('Object already exists...' );
-                        if( _TEMPLATES_.iterators.has( model[tokenName] ) ){
-                            console.log('has a iterator binding');
-                            oldBinding = _TEMPLATES_.iterators.get( model[tokenName] );
-                            console.log('old binding',oldBinding);
-                            _TEMPLATES_.iterators.delete( model[tokenName] );
-                        }else console.log('hassss noooooo binding iterator');
-                        //Object.assign( model[tokenName] , value);
-                    }
-                    model[tokenName] = _createModel_(value , keyPath+tokenName+'.');
-                    if(oldBinding){
-                        console.log('reasigning old iterator binding t new object',oldBinding);
-                        let _model =Template.Util.resolveKeyPath(keyPath+tokenName );
-                        _TEMPLATES_.iterators.set( model[tokenName] , oldBinding);
-                        let elements = _TEMPLATES_.iterators.get( _model.context[_model.key]);
-                        let i = 0;
-                        binders.for.subscribe(elements[i].element, _model.context, _model.key, _model.context[_model.key], elements[i].binderType);
-                    }
-                }else{
-                    model[tokenName] = value;
-                    // check if exist any binded element wich value has to be updated
-                    //
-                    // iterate each registered binding for provided token, if exist
-                    // an entry in the binding names for the current binding name
+        let result;
+        if( prox.has(modelContents) ){
+            console.log('aaaaaaaaaaaaaaalready has it', modelContents)
+            result =  modelContents;
 
-                    // _TEMPLATES_ to Global _MODELS_ (_root) are stored without the _root
-                    // keypath _CONFIG_.binderPrefix. Remove it.
-                    if(keyPath === '_root.') keyPath = '';
-                    if( _TEMPLATES_.placeholders.hasOwnProperty(keyPath+tokenName) ){
-                        _TEMPLATES_.placeholders[keyPath+tokenName].forEach( element =>{
-                            if(element.nodeType === Node.TEXT_NODE){
-                                // if element is a textNode update it...
-                                element.textContent = Template.Placeholder.populateString( _TEMPLATES_.elements.get(element), model) ;
-                            }else{
-                                // if it's not a textNode, asume _TEMPLATES_ are set
-                                // in element attributes
-                                let attr_list = _TEMPLATES_.elements.get(element);
-                                for(let attr in attr_list){
-                                    //
-                                    if( Template.Util.isCustomBinderName(attr) ){
-                                        let _model = Template.Util.resolveKeyPath( attr_list[attr] );
-                                        let binderType = attr.split('-');
-                                        binders[ binderType[1] ].subscribe(element, _model.context, _model.key , _model.context[_model.key] , binderType.slice(1) );
-                                    }else{
-                                        if( !attr_list.hasOwnProperty(attr) ) continue;
-                                        if(attr !== 'textNode')  element.setAttribute( attr,  Template.Placeholder.populateString( attr_list[attr], model ) );
-                                    }
-                                }
-                            }
-                        });
-                    }
-                }
+        }else{
+            console.log('nooooot have it has it', modelContents)
+            let model =  Array.isArray(modelContents) ? []:{};
 
-                // if model is an array... check if it has an iterator binder
-                if( Array.isArray(model) ){
-                    let _model =Template.Util.resolveKeyPath(keyPath.slice(0,-1) );
-                    // element, model, key , value , binderType
-                    if( tokenName !== 'length'){
-                        if(_TEMPLATES_.iterators.has( _model.context[_model.key]) ){
+            let ObserbableObject =  new Proxy( model , {
+                set : function(___model, tokenName, value){
+                    // if value to SET is an Object...
+                    _DEBUG_.darkyellow( '- Setting an value to Model' , keyPath+tokenName , ',' ,  value );
+                    if( value instanceof Object && typeof value === 'object' && !(value instanceof HTMLElement) ){
+                        // and property in _MODELS_ already exist and is an object, mix them...
+                        let oldBinding;
+                        if( model[tokenName] instanceof Object ){
+
+                            //console.log('Object already exists...' );
+                            if( _TEMPLATES_.iterators.has( model[tokenName] ) ){
+                                //console.log('has a iterator binding');
+                                oldBinding = _TEMPLATES_.iterators.get( model[tokenName] );
+                                //console.log('old binding',oldBinding);
+                                _TEMPLATES_.iterators.delete( model[tokenName] );
+                            }//else console.log('hassss noooooo binding iterator');
+                            //Object.assign( model[tokenName] , value);
+                        }
+                        model[tokenName] = _createModel_(value , keyPath+tokenName+'.');
+                        if(oldBinding){
+                            //console.log('reasigning old iterator binding t new object',oldBinding);
+                            let _model =Template.Util.resolveKeyPath(keyPath+tokenName );
+                            _TEMPLATES_.iterators.set( model[tokenName] , oldBinding);
                             let elements = _TEMPLATES_.iterators.get( _model.context[_model.key]);
                             let i = 0;
-                            console.log(elements);
-                            binders.for.subscribe(elements[i].element, _model.context, _model.key, _model.context[_model.key], elements[i].binderType)
-                        }else console.log('is member of an array but has no iteration binders');
+                            Directives.for.subscribe(elements[i].element, _model.context, _model.key, _model.context[_model.key], elements[i].binderType);
+                        }
+                    }else{
+                        model[tokenName] = value;
+                        // check if exist any binded element wich value has to be updated
+                        //
+                        // iterate each registered binding for provided token, if exist
+                        // an entry in the binding names for the current binding name
+
+
+                        if( _TEMPLATES_.placeholders.hasOwnProperty(keyPath+tokenName) ){
+                            _TEMPLATES_.placeholders[keyPath+tokenName].forEach( element =>{
+                                if(element.nodeType === Node.TEXT_NODE){
+                                    // if element is a textNode update it...
+                                    element.textContent = Template.Placeholder.populateString( _TEMPLATES_.elements.get(element), model) ;
+                                }else{
+                                    // if it's not a textNode, asume _TEMPLATES_ are set
+                                    // in element attributes
+                                    let attr_list = _TEMPLATES_.elements.get(element);
+                                    for(let attr in attr_list){
+                                        //
+                                        if( Template.Util.isCustomBinderName(attr) ){
+                                            let _model = Template.Util.resolveKeyPath( attr_list[attr] );
+                                            let binderType = attr.split('-');
+                                            Directives[ binderType[1] ].subscribe(element, _model.context, _model.key , _model.context[_model.key] , binderType.slice(1) );
+                                        }else{
+                                            if( !attr_list.hasOwnProperty(attr) ) continue;
+                                            if(attr !== 'textNode')  element.setAttribute( attr,  Template.Placeholder.populateString( attr_list[attr], model ) );
+                                        }
+                                    }
+                                }
+                            });
+                        }
                     }
+
+                    // if model is an array... check if it has an iterator binder
+                    if( Array.isArray(model) ){
+                        // element, model, key , value , binderType
+                        let _model =Template.Util.resolveKeyPath(keyPath.slice(0,-1) );
+                        if( tokenName === 'length'){
+                            //console.warn('-------------------------------------')
+                            //console.warn('is length!!',value)
+                            model.length = value
+                            //console.warn('-------------------------------------')
+                        }
+                        if(_TEMPLATES_.iterators.has( _model.context[_model.key]) ){
+                            let elements = _TEMPLATES_.iterators.get( _model.context[_model.key]);
+                            // todo: can be linked t many iterators! iterate iterators
+                            // .meanwhile.only the fisrt one i=0
+                            let i = 0;
+                            //console.log(elements);
+                            Directives.for.subscribe(elements[i].element, _model.context, _model.key, _model.context[_model.key], elements[i].binderType)
+                        }//else console.log('is member of an array but has no iteration Directive');
+                    }
+                    return true;
+                },
+
+                get : function(model, tokenName){
+                    //
+                    return model[tokenName];
+                },
+
+                apply: function(a,b,c,d){
+                    throw new Error('apply',a,b,c,d)
                 }
-                return true;
-            },
+            } );
 
-            get : function(model, tokenName){
-                return model[tokenName];
-            }
-        } );
-
-        // assign the properties to the level
-        Object.assign( level, modelContents );
-        return level;
+            // assign the properties to the ObserbableObject
+            Object.assign( ObserbableObject, modelContents );
+            prox.add(ObserbableObject)
+            result = ObserbableObject;
+        }
+        return result;
     };
 
 
     const  _bindElement__customBinder_ = function( element , customBinderName ){
         // get the value of the customBinder attribute
         let stringValue = element.getAttribute( customBinderName ).trim();
+
+        _DEBUG_.green('Binding DIRECTIVE to element :', customBinderName, stringValue, element );
+
         // split the customBinder Name in tokens  -> 'pg-on-click' = ['pg','on', 'click']
         let customBinder = customBinderName.split('-');
 
         if( Template.Util.isStringQuoted( stringValue ) ){
             // if value is quoted, call binder[customBinder].subscribte
             // with the quoted value (quotes stripped)
-            binders[ customBinder[1] ].subscribe( element, undefined, undefined, stringValue.slice(1, -1) , customBinder.slice(1));
+            Directives[ customBinder[1] ].subscribe( element, undefined, undefined, stringValue.slice(1, -1) , customBinder.slice(1));
             // TODO...
             // don't perform BINDING! (there is no variable value to bind)
-        }
-        else{
+        }else{
             // TODO: stringValue can contain multiple placeHolders... right now it
             // only takes and proces the first one.. MUST HANDLE AS MANY AS DETECTED!
             let placeholder = stringValue;
@@ -255,7 +284,7 @@ const Template = (function(){
             let model = Template.Util.resolveKeyPath(placeholder);
 
             // determine the apropiate binder (if requested binder does not exist call default one)
-            let binder = binders.hasOwnProperty(customBinder[1]) ? binders[customBinder[1]] : binders.default;
+            let binder = Directives.hasOwnProperty(customBinder[1]) ? Directives[customBinder[1]] : Directives.default;
             // bind and subscribe
             binder.bind(element,model.context, model.key, model.context[model.key] ,  customBinder.slice(1) );
             binder.subscribe( element, model.context, model.key, model.context[model.key], customBinder.slice(1) );
@@ -307,7 +336,7 @@ const Template = (function(){
                 if( Template.Util.isCustomBinderName( element.attributes[attr].name ) ){
                     _bindElement__customBinder_( element , element.attributes[attr].name );
                     let customBinder = element.attributes[attr].name.split('-')[1];
-                    if( binders.hasOwnProperty(customBinder) && binders[customBinder].block === true ) blockBindingNested = true;
+                    if( Directives.hasOwnProperty(customBinder) && Directives[customBinder].block === true ) blockBindingNested = true;
                     continue;
                 }
 
@@ -360,41 +389,14 @@ const Template = (function(){
         // block if no binding name has been provided
         if( placeholder.trim() === undefined ) throw new Error('Imposible to perform binding. Binding name not provided in Element');
 
+        _DEBUG_.green('Binding PLACEHOLDER to element :', placeholder, element.nodeType === 3 ? element.parentNode :element);
+
         // if the tokenName has not been registered previously, generate an empty entry
         if( !_TEMPLATES_.placeholders.hasOwnProperty(placeholder) ) _TEMPLATES_.placeholders[placeholder] = [];
         // link the element with the placeholder in the _TEMPLATES_ registry
         _TEMPLATES_.placeholders[placeholder].push(element);
 
-        // get the container model, if model was not provided
-        let model = Template.Util.resolveKeyPath(placeholder);
         // TODO: add an observer to the element to track changes in its structure/_TEMPLATES_
-
-        // When item is not linked with any _MODELS_ (Model_root) create a
-        // variable acces in the 'window' Object, to simulate global variable
-        if( model.context === _MODELS_._root ){
-
-            // if variable already exist in window, delete it and assign again
-            // later, after creating the getter and setter
-            let temp;
-            if( window.hasOwnProperty(model.key) ){
-                temp = window[model.key];
-                delete window[model.key];
-            }
-
-            Object.defineProperty(window, model.key, {
-                set: function(value) {
-                    _MODELS_._root[model.key] = value;
-                },
-                get: function() {
-                    return _MODELS_._root[model.key];
-                },
-                configurable : true,
-                enumerable: true
-            });
-
-            // if variable existed previously reasign its original value
-            if( typeof temp !== 'undefined' ) window[model.key] = temp;
-        }
 
         // done!
         return true;
@@ -442,7 +444,7 @@ const Template = (function(){
             }
             case Node.ELEMENT_NODE : {
                 // get all children as Array instead of NodeList
-                let all = Array.from( element.querySelectorAll("*") );
+                let all = Array.from( element.querySelectorAll('*') );
                 // include in the array the Deleted root element
                 all.push(element);
                 all.forEach( child =>{
@@ -458,7 +460,7 @@ const Template = (function(){
                             let model = Template.Util.resolveKeyPath( child.attributes[attr].value );
 
                             let binderName = child.attributes[attr].name.split('-');
-                            let binder = binders.hasOwnProperty( binderName[1] ) ? binders[ binderName[1] ] : binders.default;
+                            let binder = Directives.hasOwnProperty( binderName[1] ) ? Directives[ binderName[1] ] : Directives.default;
                             binder.unbind( child , model.context , model.key, model.context[ model.key ], binderName.slice(1) );
                         }
                     }
@@ -481,13 +483,16 @@ const Template = (function(){
                 break;
             }
             default : {
-                _DEBUG_('onDOMChange() : Unimplemented type of Node : ' + element.nodeType.toString() ,element);
+                //_DEBUG_('onDOMChange() : Unimplemented type of Node : ' + element.nodeType.toString() ,element);
             }
         }
         return true;
     };
 
     const _unbindPlaceholder_ = function (element , placeholder){
+
+        _DEBUG_.red('Unbinding PLACEHOLDER from element :', placeholder, element.nodeType === 3 ? element.parentNode :element );
+
         if( _TEMPLATES_.placeholders.hasOwnProperty( placeholder ) ){
             let index = _TEMPLATES_.placeholders[placeholder].indexOf(element);
             if (index !== -1)  _TEMPLATES_.placeholders[placeholder].splice(index, 1);
@@ -533,7 +538,7 @@ const Template = (function(){
 
 
 
-    let binders = {
+    let Directives = {
         // pg-value
         value : {
             bind : function(element, model, key , value , binderType){
@@ -617,7 +622,7 @@ const Template = (function(){
         },
         on : {
             bind : function(element, model, key , value , binderType){
-                console.log("binding FOR on-"+binderType[1], model[key])
+                //console.log("binding FOR on-"+binderType[1], model[key])
                 _bindEvent_( element, binderType[1], e=>model[key](e) );
             },
             unbind : function(element, model, key , value , binderType){
@@ -650,21 +655,25 @@ const Template = (function(){
             unbind : function( element, model, key , value , binderType ){},
             publish : function(element, model, key , value , binderType){},
             subscribe : function(element, model, key , value , binderType){
-                console.clear();
-                console.log( "subscribe FOR for-"+binderType[1], value );
+                _DEBUG_.orange( 'SUBSCRIBE for-'+binderType[1], value );
                 element.innerHTML='';
                 // recover the element binding
                 let elementBindings = _TEMPLATES_.elements.get(element);
                 // find the keypath
                 let keyPath = elementBindings[ Template.Config.binderPrefix + '-for-' +binderType[1] ];
                 let iteratorBinding = _TEMPLATES_.iterators.get(value).find(x => x.element === element)
-                console.log(keyPath , iteratorBinding );
+                //console.log(keyPath , iteratorBinding );
                 let html='';
-                for( let i=0; i< Object.keys(value).length; i++){
+                console.warn('item length', value.length)
+                for( let i=0; i< value.length; i++){
                     let tmp = iteratorBinding.html;
-                    if(typeof iteratorBinding.index !== 'undefined')  tmp = tmp.replace( '${'+iteratorBinding.index+'}',i );
+                    if(typeof iteratorBinding.index !== 'undefined'){
+                        let search = new RegExp( expresion.tokenReplace.replace('__TOKEN__', iteratorBinding.index) ,'g');
+                        tmp = tmp.replace( search ,i );
+                    }
                     html += tmp.replace(binderType[1], keyPath + '.' + i);
                 }
+                console.log(html)
                 element.innerHTML= html;
             },
         },
@@ -684,7 +693,7 @@ const Template = (function(){
         bind : function(){
             _bindElement_(document.documentElement);
             // observe the document topMost element
-            _OBSERVER_.observe(document.documentElement, { attributes: false, childList: true , subtree:true, characterData:false});
+            _DOM_OBSERVER_.observe(document.documentElement, { attributes: false, childList: true , subtree:true, characterData:false});
         },
 
         unbind : function(element = document.documentElement ){
@@ -705,7 +714,7 @@ const Template = (function(){
 
             if( element.childNodes.length) element.childNodes.forEach( e=> Template.unbind(e) );
 
-            if( element === document.documentElement) _OBSERVER_.disconnect();
+            if( element === document.documentElement) _DOM_OBSERVER_.disconnect();
         },
 
         /**
@@ -871,20 +880,14 @@ const Template = (function(){
              * @return {[type]}         [description]
              */
             resolveKeyPath( keyPath ){
-                // split the string in the diferent path levels
+                // split the string in the diferent path ObserbableObjects
                 let parts = keyPath.split(".");
                 // extract the last item (asume is the property)
                 let bindName = ( parts.splice(-1,1) )[0];
                 let result;
 
                 if( parts.length === 0 ){
-                    //
-                    // if there are no keys to iterate, asume is a global binding (_root model)
-                    //
-                    // if _root model does not exist create it
-                    if( !_MODELS_['_root'] ) _MODELS_['_root']  = {};
-                    // generate output object
-                    result = { context : _MODELS_['_root'] , key : bindName };
+                    console.warn('Root properties deprecated', keyPath)
                 }else{
                     //
                     // keys are found, iterate them to generate the model context
