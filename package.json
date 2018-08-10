@@ -2,14 +2,15 @@
     "name": "live-template",
     "description": "HTML Templating + Automatic Model Data Binding.",
     "version": "0.0.1",
-    "keywords": [
-
-    ],
+    "keywords": [],
     "author": "colxi",
     "license": "GPL",
     "repository": {
         "type": "git",
         "url": "https://github.com/colxi/"
     },
-    "dependencies": {}
+    "dependencies": {
+        "deep-observer": "^1.1.7",
+        "keypath-resolve": "^1.2.2"
+    }
 }

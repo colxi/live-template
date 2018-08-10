@@ -1,8 +1,41 @@
 <!DOCTYPE html>
 <html>
-	<head pg-view="'head'"></head>
-	<body pg-view="'body'">
-	</body>
-	<script src="../live-template.js"></script>
-	<script src="./models/app.js"></script>
+<head>
+    <title></title>
+    <!--
+    <meta lang="{myApp.lang}-{myApp.region}">
+    -->
+</head>
+<body>
+    {myApp.test}
+    <span>{myApp.child.a}</span>
+    <div>
+        <input type="button" onclick="Debug.showBindings()" value="show Bindings">
+        <input type="button" onclick="Debug.showModels()" value="show Models">
+        <input type="button" onclick="createModel()" value="Create model">
+    </div>
+</body>
+    <script src="../live-template.js" type="module"></script>
+    <script>
+
+function createModel(){
+    new Template.Model('myApp',{
+        test:'a test',
+        child:{a:111}
+    });
+}
+window.onload =  ()=>{
+    Template.bind();
+/*
+    new Template.Model( 'myApp', {
+        test :'i\'m a test',
+        lang :'ES',
+        region :'es'
+    });
+    */
+   // document.body.innerHTML='{myApp.test}{myApp.fail}';
+
+};
+
+    </script>
 </html>
