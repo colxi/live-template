@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-16 00:57:13
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-03 22:16:38
+* @Last Modified time: 2018-08-13 18:41:27
 */
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
@@ -12,35 +12,12 @@ import { Util } from './core-util.js';
 
 
 const ObserverCallback = function( changes ){
-    console.log( 'ObserverCallback(): ', changes )
+    console.log( 'ObserverCallback(): Change event: ', changes )
     switch(changes.action){
         case 'add':
         case 'update': {
             //debugger;
-            if( Bindings.placeholders.hasOwnProperty(changes.keyPath) ){
-                Bindings.placeholders[changes.keyPath].forEach( element =>{
-                    if(element.nodeType === Node.TEXT_NODE){
-                        // if element is a textNode update it...
-                        element.textContent = Placeholder.populateString( Bindings.elements.get(element), changes.object) ;
-                    }else{
-                        // if it's not a textNode, asume Template._Bindings are set
-                        // in element attributes
-                        let attr_list = Bindings.elements.get(element);
-                        for(let attr in attr_list){
-                            //
-                            if( Util.isDirectiveName(attr) ){
-                                //let context = Util.resolveKeyPath( attr_list[attr] );
-
-                                let binderType = attr.split('-');
-                                Directives[ binderType[1] ].subfscribe(element, attr_list[attr] , binderType.slice(1), context.model[context.key] );
-                            }else{
-                                if( !attr_list.hasOwnProperty(attr) ) continue;
-                                if(attr !== 'textNode')  element.setAttribute( attr,  Placeholder.populateString( attr_list[attr], changes.object ) );
-                            }
-                        }
-                    }
-                });
-            }
+            Bindings.render( changes.keyPath, changes.object)
 
         }
         default:
@@ -100,7 +77,7 @@ const ObserverCallback = function( changes ){
                                 let attr_list = Template._Bindings.elements.get(element);
                                 for(let attr in attr_list){
                                     //
-                                    if( Template.Util.isDirectiveName(attr) ){
+                                    if( Template.Directives.validateName(attr) ){
                                         let _model = Template.Util.resolveKeyPath( attr_list[attr] );
                                         let binderType = attr.split('-');
                                         Template._Directives[ binderType[1] ].subscribe(element, _model.context, _model.key , _model.context[_model.key] , binderType.slice(1) );

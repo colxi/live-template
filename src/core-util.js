@@ -2,10 +2,11 @@
 * @Author: colxi
 * @Date:   2018-07-17 21:25:22
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-03 11:48:46
+* @Last Modified time: 2018-08-13 15:11:42
 */
 
 import { Config } from './core-config.js';
+import '../node_modules/deep-observer/src/deep-observer.js';
 
 const Util = {
     /**
@@ -62,25 +63,27 @@ const Util = {
         else return false;
     },
     /**
-     * Template.Util.isDirectiveName() : If the attribute name has a binder name syntax
+     * Template.Directives.validateName() : If the attribute name has a binder name syntax
      * structure return the binder name, if not , return false
      *
      * @param  {[type]}  attrName [description]
      * @return {Boolean}          [description]
      */
-    isDirectiveName( attrName, binderPrefix ){
+    /*
+    moved to to Directives.validateName()
+    isDirectiveName( attrName, directivePrefix ){
         //
         let binderNameParts = attrName.split('-');
-        if ( binderNameParts[0] !== binderPrefix ) return false;
+        if ( binderNameParts[0] !== directivePrefix ) return false;
         else return true;
 
-        //return ( attrName.substring(0, (Config.binderPrefix.length+1)) == Config.binderPrefix + "-") ? attrName.substring(3) : false;
+        //return ( attrName.substring(0, (Config.directivePrefix.length+1)) == Config.directivePrefix + "-") ? attrName.substring(3) : false;
     },
+    */
     /**
      * [Template.Util.resolveKeyPath description]
      * @param  {[type]} keyPath [description]
      * @return {[type]}         [description]
-     */
     resolveKeyPath( keyPath ){
         // split the string in the diferent path ObserbableObjects
         let parts = keyPath.split('.');
@@ -123,6 +126,8 @@ const Util = {
         // done!
         return result;
     }
+         */
+
 }
 
 export { Util };

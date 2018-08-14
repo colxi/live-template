@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-03 11:48:21
+* @Last Modified time: 2018-08-13 15:11:58
 */
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
@@ -37,7 +37,7 @@ Unbind.element = function( element ){
                     if( !child.attributes.hasOwnProperty(attr) ) continue;
 
                     // if current attribute is a Custom Binder.. perform custom binding
-                    if( Util.isDirectiveName( child.attributes[attr].name , Config.binderPrefix) ){
+                    if( Directives.validateName( child.attributes[attr].name , Config.directivePrefix) ){
                         if(Util.isStringQuoted( child.attributes[attr].value ) ) continue;
 
                         let model = Util.resolveKeyPath( child.attributes[attr].value );

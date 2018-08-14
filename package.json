@@ -4,13 +4,13 @@
     "version": "0.0.1",
     "keywords": [],
     "author": "colxi",
-    "license": "GPL",
+    "license": "MIT",
     "repository": {
         "type": "git",
         "url": "https://github.com/colxi/"
     },
     "dependencies": {
         "deep-observer": "^1.1.7",
-        "keypath-resolve": "^1.2.2"
+        "keypath-resolve": "^2.1.3"
     }
 }

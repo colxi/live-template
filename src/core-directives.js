@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-03 11:36:41
+* @Last Modified time: 2018-08-13 15:10:51
 */
 
 import { Config } from './core-config.js';
@@ -130,7 +130,7 @@ const Directives = {
                 element:element,
                 binderType:binderType,
                 html:element.innerHTML,
-                index:element.getAttribute( Config.binderPrefix + ':index' )
+                index:element.getAttribute( Config.directivePrefix + ':index' )
             }] );
             element.innerHTML = '';
         },
@@ -142,7 +142,7 @@ const Directives = {
             // recover the element binding
             let elementBindings = Bindings.elements.get(element);
             // find the keypath
-            let keyPath = elementBindings[ Config.binderPrefix + '-for-' +binderType[1] ];
+            let keyPath = elementBindings[ Config.directivePrefix + '-for-' +binderType[1] ];
             let iteratorBinding = Bindings.iterators.get(value).find(x => x.element === element)
             //console.log(keyPath , iteratorBinding );
             let html='';
@@ -166,6 +166,24 @@ const Directives = {
             _DEBUG_('DEFAULT BINDER bind():',element,model,key,binderType);
         }
     }
+};
+
+/**
+ *
+ * Directives.validateName() : If the directiveName has appropiate structure
+ * (starts with ) return the binder name, if not , return false
+ *
+ * @param  {[type]}  attrName [description]
+ * @return {Boolean}          [description]
+ *
+ */
+Directives.validateName = function( directiveName ){
+    //
+    let parts = directiveName.split('-');
+    if ( parts[0] !== Config.directivePrefix ) return false;
+    else return true;
+
+    //return ( attrName.substring(0, (Config.directivePrefix.length+1)) == Config.directivePrefix + "-") ? attrName.substring(3) : false;
 };
 
 export { Directives }

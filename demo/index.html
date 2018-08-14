@@ -7,8 +7,14 @@
     -->
 </head>
 <body>
-    {myApp.test}
-    <span>{myApp.child.a}</span>
+    <div id="binded">
+        This is {myApp.test} <br>
+        Number {myApp.child.a}-{myApp.child.b}
+        <div style="color:{myApp.color}">I should be {myApp.color}</div>
+    </div>
+
+
+
     <div>
         <input type="button" onclick="Debug.showBindings()" value="show Bindings">
         <input type="button" onclick="Debug.showModels()" value="show Models">
@@ -18,14 +24,20 @@
     <script src="../live-template.js" type="module"></script>
     <script>
 
+
 function createModel(){
     new Template.Model('myApp',{
         test:'a test',
-        child:{a:111}
+        color:'red',
+        child:{
+            a:111,
+            b:222
+        }
     });
 }
+
 window.onload =  ()=>{
-    Template.bind();
+    Template.bind( document.getElementById("binded"));
 /*
     new Template.Model( 'myApp', {
         test :'i\'m a test',

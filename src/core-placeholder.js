@@ -2,13 +2,14 @@
 * @Author: colxi
 * @Date:   2018-07-17 15:55:37
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-03 23:00:59
+* @Last Modified time: 2018-08-13 15:11:56
 */
 
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
 import { Util } from './core-util.js';
-
+import '../node_modules/deep-observer/src/deep-observer.js';
+import '../node_modules/keypath-resolve/src/keypath-resolve.js';
 
 
 const Placeholder = {
@@ -60,7 +61,7 @@ const Placeholder = {
                     if( !attributes.hasOwnProperty(currentAttr) ) continue;
                     let placeholdersPartial = Placeholder.getFromString(  attributes[currentAttr] ) ;
 
-                    if( Util.isDirectiveName( currentAttr ) && !placeholdersPartial.lenght ){
+                    if( Directives.validateName( currentAttr ) && !placeholdersPartial.lenght ){
                         // if value is quoted, call binder[bindername].subscribte
                         // with the quoted value
                         let v = attributes[currentAttr].trim();
@@ -87,14 +88,15 @@ const Placeholder = {
         let placeholders = Placeholder.getFromString( string );
         // iterate each placeholder
         placeholders.forEach( placeholder=>{
-            let model = Util.resolveKeyPath( placeholder );
             let value;
-            if(model){
-                value = model.context[model.key];
-            }else{
+            try{
+                let model = Keypath.resolveContext( Observer._enumerate_(),  placeholder );
+                value = model.context[model.property];
+            }catch(e){
                 value = '';
-                console.warn('Placeholder.populatestring(): Model' , placeholder,'does not exist');
+                //console.warn('Placeholder.populatestring(): Model' , placeholder,'does not exist');
             }
+
             // generate the search regular expresion with the current placeholder
             let search = new RegExp( Config._replacePlaceholdersExpString.replace('__PLACEHOLDER__', placeholder) ,'g');
             // find te value of the Binding placeholder, in  the provided model, and
@@ -104,6 +106,7 @@ const Placeholder = {
         // done! return parsed String
         return string;
     }
+
 };
 
-export { Placeholder }
+export { Placeholder };

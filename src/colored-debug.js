@@ -9,6 +9,8 @@
             yellow  : 'yellow',
             darkyellow  : '#c9c91e',
             orange  : 'orange',
+            blue  : '#2196F3',
+            lightblue  : '#03A9F4',
         },
     };
 
@@ -39,10 +41,13 @@
     _DEBUG_.yellow = function(...args){ applyStyle( 'color:' + Config.debugStyles.yellow + ';' , ...args ) };
     _DEBUG_.darkyellow = function(...args){ applyStyle( 'color:' + Config.debugStyles.darkyellow + ';' , ...args ) };
     _DEBUG_.orange = function(...args){ applyStyle( 'color:' + Config.debugStyles.orange + ';' , ...args ) };
+    _DEBUG_.blue = function(...args){ applyStyle( 'color:' + Config.debugStyles.blue + ';' , ...args ) };
+    _DEBUG_.lightblue = function(...args){ applyStyle( 'color:' + Config.debugStyles.lightblue + ';' , ...args ) };
 
     // done!
     if (typeof module !== 'undefined' && module.exports) module.exports = _DEBUG_;
     else window._DEBUG_ = _DEBUG_;
 
 })();
+
 

@@ -2,14 +2,18 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-09 19:53:57
+* @Last Modified time: 2018-08-13 18:35:26
 */
+
+/* global _DEBUG_ */
+
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
 import { Directives } from './core-directives.js';
 import { Placeholder } from './core-placeholder.js';
 import { Util } from './core-util.js';
-import { ObserverCallback } from './core-observer-callback.js';
+import '../node_modules/deep-observer/src/deep-observer.js';
+import '../node_modules/keypath-resolve/src/keypath-resolve.js';
 
 
 const Bind = {};
@@ -49,7 +53,7 @@ Bind.element = function( element ){
             uninitializedPlaceholders = uninitializedPlaceholders.concat( placeholders );
 
             // if current attribute is a Custom Binder.. perform custom binding
-            if( Util.isDirectiveName( element.attributes[attr].name , Config.binderPrefix) ){
+            if( Directives.validateName( element.attributes[attr].name , Config.directivePrefix) ){
                 _DEBUG_.darkyellow('Bind.Element(): Directive found in elemnt :',  element.attributes[attr].name, '=','"'+element.attributes[attr].value+'"' );
 
                 Bind.elementDirective( element , element.attributes[attr].name );
@@ -87,27 +91,36 @@ Bind.element = function( element ){
 
     }
 
+    // remove duplicates from uninitializedPlaceholders
+    uninitializedPlaceholders = Array.from(new Set(uninitializedPlaceholders));
     // no more tasks pending! initialize placeholders in element!
     if( uninitializedPlaceholders.length){
         _DEBUG_.darkyellow('Bind.Element(): Interpolating Placeholder(s)' );
         uninitializedPlaceholders.forEach( placeholder => {
-            let model = Util.resolveKeyPath(placeholder);
-
-            ObserverCallback( {action: 'update' , keyPath:placeholder } );
-            if(model) model.context[model.key] = model.context[model.key];
-            else  console.log('Bind.elemnet() : todo->set undeclared placeholder to empty value. Affected :', placeholder);
+            /*
+            let model;
+            try{
+                model = Keypath.resolveContext( Observer._enumerate_() , placeholder);
+                //model.context[model.property] = model.context[model.property];
+            }catch(e){
+                console.warn('Bind.elemnet() : todo->set undeclared placeholder to empty value. Affected :', placeholder);
+            }
+            */
+            Bindings.render( placeholder  );
         });
     }else{
         _DEBUG_.darkyellow('Bind.Element(): Nothing to Bind in element.');
     }
 
     if( !blockBindingNested ){
-        // if element has childnodes and are Element Nodes (text nodes have already
+        // if element has child nodes and are Element Nodes (text nodes have already
         // been binded), bind them recursively
-        if( element.childNodes.length){
-            _DEBUG_.darkyellow('Bind.Element(): Element has children...' );
-            element.childNodes.forEach( childNode =>{
-                if( childNode.nodeType === Node.ELEMENT_NODE ) Bind.element( childNode );
+        let childNodes = Array.from(element.childNodes);
+        childNodes  = childNodes.filter(child=> child.nodeType === Node.ELEMENT_NODE );
+        if( childNodes.length){
+            _DEBUG_.darkyellow('Bind.Element(): Element has child Nodes...');
+            childNodes.forEach( childNode =>{
+                Bind.element( childNode );
             });
         }
     }
@@ -153,7 +166,7 @@ Bind.elementDirective = function( element , customBinderName ){
         //binder.bind(element, model.context, model.key, model.context[model.key] ,  customBinder.slice(1) );
         let model = Util.resolveKeyPath(placeholder);
 
-        if( !model ) console.log('Bind.elementdirective() : model ' + placeholder + ' or prperty does mot exist')
+        if( !model ) console.log('Bind.elementdirective() : model ' + placeholder + ' or prperty does mot exist');
         binder.subscribe( element, placeholder, customBinder.slice(1) , model ? model.context[model.key] : '');
     }
     return true;

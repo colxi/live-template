@@ -2,10 +2,13 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-03 22:43:07
+* @Last Modified time: 2018-08-13 18:37:36
 */
+/* global _DEBUG_ */
+
+
 import './src/colored-debug.js';
-import './src/deep-observer.js';
+import './node_modules/deep-observer/src/deep-observer.js';
 import { Config , ConfigInterface } from './src/core-config.js';
 import { Bind } from './src/core-bind.js';
 import { Unbind } from './src/core-unbind.js';
@@ -13,17 +16,13 @@ import { Bindings } from './src/core-bindings.js';
 import { ObserverCallback } from './src/core-observer-callback.js';
 
 
-import { Placeholder } from './src/core-placeholder.js';
-window.Placeholder=Placeholder;
-
-
 let _DOM_OBSERVER_ = new MutationObserver( mutationsList => {
     for(let mutation of mutationsList){
         if (mutation.type !== 'childList') continue;
         // first process Removed Nodes
         mutation.removedNodes.forEach( x=>{
-            console.log(x, x.parentNode )
-            Unbind.placeholder(x)
+            console.log(x, x.parentNode );
+            Unbind.placeholder(x);
         } );
         // and then Added Nodes
         mutation.addedNodes.forEach( Bind.element  );
@@ -53,17 +52,21 @@ const Template = window.Template =  function( _binding ){
  * [init description]
  * @return {[type]} [description]
  */
-Template.bind = function(){
-    Bind.element(document.documentElement);
+Template.bind = function( root ){
+    if(typeof root === 'undefined') root = document.documentElement;
+    if( !(root instanceof HTMLElement) ) throw new Error('Only HTML Elements can be binded' );
+    console.log('Start Binding')
+    Bind.element(root);
     // observe the document topMost element
-    _DOM_OBSERVER_.observe(document.documentElement, { attributes: false, childList: true , subtree:true, characterData:false});
+    _DOM_OBSERVER_.observe(root, { attributes: false, childList: true , subtree:true, characterData:false});
+    console.log('Binding Complete')
 };
 
 Template.unbind = function(element = document.documentElement ){
 
     if( Bindings.elements.has(element) ){
         let value = Bindings.elements.get(element);
-        console.log(value)
+        console.log(value);
         if( element.nodeType === Node.TEXT_NODE ){
             element.textContent = value;
         }else{
@@ -114,7 +117,7 @@ Template.View = function( viewName, content){
  * @return {[type]}           [description]
  */
 Template.loadModel = /* async */ function( modelName = '' ){
-    if( typeof modelName !== 'string' ) throw new Error("Template.loadModel() : Model name must be a String.");
+    if( typeof modelName !== 'string' ) throw new Error('Template.loadModel() : Model name must be a String.');
 
     // prepare the pathname
     modelName = modelName.trim();
@@ -122,7 +125,7 @@ Template.loadModel = /* async */ function( modelName = '' ){
     if( Config.modelsNamesExtension ) modelName = modelName + Config.modelsNamesExtension;
 
     return new Promise((resolve, reject) => {
-        let script = document.createElement("script");
+        let script = document.createElement('script');
         let loaderId = "__tempModuleLoadingVariable" + Math.random().toString(32).substring(2);
 
         // Handler to be executed when Module is loaded
