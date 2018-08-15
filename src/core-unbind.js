@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-13 15:11:58
+* @Last Modified time: 2018-08-14 14:10:04
 */
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
@@ -15,7 +15,7 @@ import { Util } from './core-util.js';
 const Unbind = {};
 
 Unbind.element = function( element ){
-    _DEBUG_.red('Unbinding ELEMENT :', eelement.nodeType === 3 ? element.parentNode : element );
+    _DEBUG_.red('Unbinding ELEMENT :', element.nodeType === Node.TEXT_NODE ? element.parentNode : element );
     switch( element.nodeType ){
         case Node.TEXT_NODE : {
             let tokens = Placeholder.getFromTemplate( element );
@@ -75,7 +75,9 @@ Unbind.element = function( element ){
 };
 
 Unbind.placeholder = function (element , placeholder){
-
+    if(typeof placeholder !== 'string'){
+    throw new Error('invalid pleceholder')
+    }
     _DEBUG_.red('Unbinding PLACEHOLDER from element :', placeholder, element.nodeType === 3 ? element.parentNode :element );
 
     if( Bindings.placeholders.hasOwnProperty( placeholder ) ){

@@ -7,23 +7,21 @@
     -->
 </head>
 <body>
-    <div id="binded">
+    <div id="view">
         This is {myApp.test} <br>
         Number {myApp.child.a}-{myApp.child.b}
         <div style="color:{myApp.color}">I should be {myApp.color}</div>
     </div>
 
-
-
     <div>
-        <input type="button" onclick="Debug.showBindings()" value="show Bindings">
-        <input type="button" onclick="Debug.showModels()" value="show Models">
+        <input type="button" onclick="Template.bind('#view');" value="Bind Div">
+        <input type="button" onclick="Template.unbind('#view');" value="Unind Div">
         <input type="button" onclick="createModel()" value="Create model">
     </div>
-</body>
-    <script src="../live-template.js" type="module"></script>
-    <script>
 
+</body>
+<script src="../live-template.js" type="module"></script>
+<script>
 
 function createModel(){
     new Template.Model('myApp',{
@@ -36,18 +34,7 @@ function createModel(){
     });
 }
 
-window.onload =  ()=>{
-    Template.bind( document.getElementById("binded"));
-/*
-    new Template.Model( 'myApp', {
-        test :'i\'m a test',
-        lang :'ES',
-        region :'es'
-    });
-    */
-   // document.body.innerHTML='{myApp.test}{myApp.fail}';
+window.onload = ()=>Debug.showDebuger();
 
-};
-
-    </script>
+</script>
 </html>

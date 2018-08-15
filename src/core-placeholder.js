@@ -2,12 +2,13 @@
 * @Author: colxi
 * @Date:   2018-07-17 15:55:37
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-13 15:11:56
+* @Last Modified time: 2018-08-14 19:19:46
 */
 
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
 import { Util } from './core-util.js';
+import { Directives } from './core-directives.js';
 import '../node_modules/deep-observer/src/deep-observer.js';
 import '../node_modules/keypath-resolve/src/keypath-resolve.js';
 

@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-13 17:45:34
+* @Last Modified time: 2018-08-14 13:07:21
 */
 
 /* global _DEBUG_ */
@@ -91,4 +91,4 @@ const Bindings = {
     }
 };
 
-export { Bindings }
+export { Bindings };

@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-13 18:37:36
+* @Last Modified time: 2018-08-14 21:36:59
 */
 /* global _DEBUG_ */
 
@@ -12,8 +12,10 @@ import './node_modules/deep-observer/src/deep-observer.js';
 import { Config , ConfigInterface } from './src/core-config.js';
 import { Bind } from './src/core-bind.js';
 import { Unbind } from './src/core-unbind.js';
+import { Placeholder } from './src/core-placeholder.js';
 import { Bindings } from './src/core-bindings.js';
 import { ObserverCallback } from './src/core-observer-callback.js';
+import { Debug } from './src/debugger/debugger.js';
 
 
 let _DOM_OBSERVER_ = new MutationObserver( mutationsList => {
@@ -21,11 +23,12 @@ let _DOM_OBSERVER_ = new MutationObserver( mutationsList => {
         if (mutation.type !== 'childList') continue;
         // first process Removed Nodes
         mutation.removedNodes.forEach( x=>{
-            console.log(x, x.parentNode );
-            Unbind.placeholder(x);
+            let placeholders= Placeholder.getFromTemplate( x );
+            placeholders.forEach(p=>Unbind.placeholder(x,p));
         } );
         // and then Added Nodes
         mutation.addedNodes.forEach( Bind.element  );
+        Debug.loadTab();
     }
     // done !
 });
@@ -53,13 +56,17 @@ const Template = window.Template =  function( _binding ){
  * @return {[type]} [description]
  */
 Template.bind = function( root ){
+    if(typeof root === 'string') root = document.querySelectorAll( root )[0];
+
     if(typeof root === 'undefined') root = document.documentElement;
-    if( !(root instanceof HTMLElement) ) throw new Error('Only HTML Elements can be binded' );
+    else if( !(root instanceof HTMLElement) ) throw new Error('Template.bind(): Invalid input')
+
     console.log('Start Binding')
     Bind.element(root);
     // observe the document topMost element
     _DOM_OBSERVER_.observe(root, { attributes: false, childList: true , subtree:true, characterData:false});
-    console.log('Binding Complete')
+    console.log('Binding Complete');
+    Debug.loadTab();
 };
 
 Template.unbind = function(element = document.documentElement ){
@@ -193,16 +200,6 @@ Object.defineProperty(Template , 'Config', {
 
 
 
-
-
-window.Debug={
-    showBindings : function(){
-        console.log(Bindings);
-    },
-    showModels: function(){
-        console.log( Observer._enumerate_() );
-    }
-}
 
 
 
