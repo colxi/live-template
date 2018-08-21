@@ -4,7 +4,8 @@
     const Config = {
         debugMode               : true,
         debugStyles             : {
-            red     : 'red',
+            red     : '#ff5353',
+            darkred     : '#af3333',
             green   : 'green',
             yellow  : 'yellow',
             darkyellow  : '#c9c91e',
@@ -37,6 +38,7 @@
     _DEBUG_.deactivate = function(){ Config.debugMode = false };
 
     _DEBUG_.red = function(...args){  applyStyle( 'color:' + Config.debugStyles.red + ';' , ...args )  };
+    _DEBUG_.darkred = function(...args){  applyStyle( 'color:' + Config.debugStyles.darkred + ';' , ...args )  };
     _DEBUG_.green = function(...args){  applyStyle( 'color:' + Config.debugStyles.green + ';' , ...args )  };
     _DEBUG_.yellow = function(...args){ applyStyle( 'color:' + Config.debugStyles.yellow + ';' , ...args ) };
     _DEBUG_.darkyellow = function(...args){ applyStyle( 'color:' + Config.debugStyles.darkyellow + ';' , ...args ) };

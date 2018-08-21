@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-16 00:57:13
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-13 18:41:27
+* @Last Modified time: 2018-08-20 22:01:48
 */
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
@@ -12,7 +12,7 @@ import { Util } from './core-util.js';
 
 
 const ObserverCallback = function( changes ){
-    console.log( 'ObserverCallback(): Change event: ', changes )
+    console.log( 'MutationObserverCallback(): Event: ', changes.action ,  changes.keyPath )
     switch(changes.action){
         case 'add':
         case 'update': {
@@ -77,7 +77,7 @@ const ObserverCallback = function( changes ){
                                 let attr_list = Template._Bindings.elements.get(element);
                                 for(let attr in attr_list){
                                     //
-                                    if( Template.Directives.validateName(attr) ){
+                                    if( Directive.isDirectiveName(attr) ){
                                         let _model = Template.Util.resolveKeyPath( attr_list[attr] );
                                         let binderType = attr.split('-');
                                         Template._Directives[ binderType[1] ].subscribe(element, _model.context, _model.key , _model.context[_model.key] , binderType.slice(1) );

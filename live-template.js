@@ -2,17 +2,17 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-14 21:36:59
+* @Last Modified time: 2018-08-20 23:32:30
 */
 /* global _DEBUG_ */
 
 
-import './src/colored-debug.js';
+import './src/log.js';
 import './node_modules/deep-observer/src/deep-observer.js';
 import { Config , ConfigInterface } from './src/core-config.js';
 import { Bind } from './src/core-bind.js';
 import { Unbind } from './src/core-unbind.js';
-import { Placeholder } from './src/core-placeholder.js';
+import { Util } from './src/core-util.js';
 import { Bindings } from './src/core-bindings.js';
 import { ObserverCallback } from './src/core-observer-callback.js';
 import { Debug } from './src/debugger/debugger.js';
@@ -21,13 +21,13 @@ import { Debug } from './src/debugger/debugger.js';
 let _DOM_OBSERVER_ = new MutationObserver( mutationsList => {
     for(let mutation of mutationsList){
         if (mutation.type !== 'childList') continue;
-        // first process Removed Nodes
-        mutation.removedNodes.forEach( x=>{
-            let placeholders= Placeholder.getFromTemplate( x );
-            placeholders.forEach(p=>Unbind.placeholder(x,p));
-        } );
+        // first unbind Removed Nodes
+        console.log(mutation.removedNodes)
+        //const elements = Array.from(mutation.removedNodes).filter( e => e.nodeType === Node.ELEMENT_NODE );
+        //elements.forEach(  Unbind.element );
+        Array.from(mutation.removedNodes).forEach( Unbind.element );
         // and then Added Nodes
-        mutation.addedNodes.forEach( Bind.element  );
+        mutation.addedNodes.forEach( Bind.element );
         Debug.loadTab();
     }
     // done !
@@ -55,46 +55,83 @@ const Template = window.Template =  function( _binding ){
  * [init description]
  * @return {[type]} [description]
  */
-Template.bind = function( root ){
-    if(typeof root === 'string') root = document.querySelectorAll( root )[0];
+Template.create = function( element ){
+    // todo: should accept  element or string selector.
+    // f element orf element resulting from string selector, is a child of a
+    // element linked to a root binding , bunding is redundant and should be declined
 
-    if(typeof root === 'undefined') root = document.documentElement;
-    else if( !(root instanceof HTMLElement) ) throw new Error('Template.bind(): Invalid input')
+    if(typeof element === 'string') element = document.querySelectorAll( element )[0];
 
-    console.log('Start Binding')
-    Bind.element(root);
-    // observe the document topMost element
-    _DOM_OBSERVER_.observe(root, { attributes: false, childList: true , subtree:true, characterData:false});
-    console.log('Binding Complete');
-    Debug.loadTab();
-};
+    if(typeof element === 'undefined') element = document.documentElement;
+    else if( !(element instanceof HTMLElement) ) throw new Error('Template.bind(): Invalid input');
 
-Template.unbind = function(element = document.documentElement ){
-
-    if( Bindings.elements.has(element) ){
-        let value = Bindings.elements.get(element);
-        console.log(value);
-        if( element.nodeType === Node.TEXT_NODE ){
-            element.textContent = value;
-        }else{
-            for(let attr in value){
-                if( !value.hasOwnProperty(attr) ) continue;
-                element.setAttribute( attr , value[attr] );
-            }
-        }
-        Unbind.placeholder( element );
+    // block if he elmntmor any of its parents is already in use by a template
+    if( Bindings.templates.has(element) || ( Util.getParents(element) ).filter( parent => Bindings.templates.has(parent) ).length ){
+        console.log('An existing template is already using this element');
+        return false;
     }
 
-    if( element.childNodes.length) element.childNodes.forEach( e=> Template.unbind(e) );
+    // capture the original state of the elemnt before performing bindings
+    const elementContent = element.innerHTML;
+    const elementAttributes = [];
+    Array.from( element.attributes ).forEach( a =>{
+        elementAttributes.push( { name : a.name, value: a.value } );
+    });
 
-    if( element === document.documentElement) _DOM_OBSERVER_.disconnect();
+
+    console.log('Creating Template',element);
+    Bind.element(element);
+    // observe the document topMost element
+    _DOM_OBSERVER_.observe(element, { attributes: false, childList: true , subtree:true, characterData:false});
+    // store the templste data
+    Bindings.templates.set(element , {
+        content : elementContent,
+        attributes: elementAttributes,
+        observer: null,
+        id:null
+    });
+    console.log('Template Complete');
+    Debug.loadTab();
+
+    return true; // should return a binding reference (view)
 };
 
-/**
- * [Model description]
- * @param {[type]} modelName [description]
- * @param {Object} content   [description]
- */
+Template.destroy = function(element ){
+    if(typeof element === 'string') element = document.querySelectorAll( element )[0];
+
+    if(typeof element === 'undefined') element = document.documentElement;
+    else if( !(element instanceof HTMLElement) ) throw new Error('Template.bind(): Invalid input');
+
+
+    if( !Bindings.templates.has(element)){
+        console.log('This Element is not the root of any Template.');
+        return false;
+    }
+
+    console.log('Destroying Template', element);
+    const template = Bindings.templates.get(element);
+
+    // disable Mutation Observer (prevents triggering events when the Unbinding
+    // changes the HTML ton its original value
+    _DOM_OBSERVER_.disconnect();
+
+    Unbind.element(element);
+
+    // delete element current attributes
+    Array.from(element.attributes).forEach( a => element.removeAttribute(a.name) );
+    // restore element original attributes
+    template.attributes.forEach( a => element.setAttribute(a.name, a.value) );
+    // restre original html contnt
+    element.innerHTML = template.content;
+
+    // DONE, DELETE TEMPLATE ENTRY FROM CLLECTION
+    Bindings.templates.delete(element);
+    console.log('Template Destroyed');
+
+
+    return true;
+};
+
 Template.Model = function( modelName, content ){
     if(typeof content === 'undefined'){
         return Observer(modelName);
@@ -108,21 +145,16 @@ Template.Model = function( modelName, content ){
     }
 };
 
-/**
- * [View description]
- * @param {[type]} viewName [description]
- * @param {[type]} content  [description]
- */
+
+
+
+
+
 Template.View = function( viewName, content){
     //
     //
 };
 
-/**
- * [loadModel description]
- * @param  {String} modelName [description]
- * @return {[type]}           [description]
- */
 Template.loadModel = /* async */ function( modelName = '' ){
     if( typeof modelName !== 'string' ) throw new Error('Template.loadModel() : Model name must be a String.');
 
@@ -161,11 +193,6 @@ Template.loadModel = /* async */ function( modelName = '' ){
     });
 };
 
-/**
- * [loadView description]
- * @param  {String} viewName [description]
- * @return {[type]}          [description]
- */
 Template.loadView = /*async*/ function( viewName = '' ){
     if( typeof viewName !== 'string' ) throw new Error("Template.loadView() : View name must be a String.");
     //
@@ -176,11 +203,6 @@ Template.loadView = /*async*/ function( viewName = '' ){
             });
     });
 };
-
-/**
- * [Util description]
- * @type {Object}
- */
 
 
 Object.defineProperty(Template , 'Config', {

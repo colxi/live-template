@@ -2,13 +2,14 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-13 15:10:51
+* @Last Modified time: 2018-08-20 23:06:49
 */
 
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
 import { Bind } from './core-bind.js';
 import { Unbind } from './core-unbind.js';
+import '../node_modules/keypath-resolve/src/keypath-resolve.js';
 
 /*
 * @Author: colxi
@@ -25,12 +26,12 @@ const Directives = {
         },
         unbind : function( element, model, key , value , binderType){
             console.log("unbinding FOR: pg-value");
-            Unbind.event( element , 'input' );
+            //Unbind.event( element , 'input' );
         },
         publish : function(element, keyPath , binderType, value){
             // change in DOM must be setted to _MODELS_ Object
-            let model = Template.Util.resolveKeyPath(keyPath);
-            if(model) model.context[ model['key'] ] = value;
+            let model = Keypath.resolveContext( Observer._enumerate_() , keyPath);
+            if(model) model.context[ model['property'] ] = value;
             else console.log('model or prperty does mot exist')
         },
         subscribe : function(element , keyPath , binderType, value){
@@ -170,14 +171,17 @@ const Directives = {
 
 /**
  *
- * Directives.validateName() : If the directiveName has appropiate structure
+ * Directive.isDirectiveName() : If the directiveName has appropiate structure
  * (starts with ) return the binder name, if not , return false
  *
  * @param  {[type]}  attrName [description]
  * @return {Boolean}          [description]
  *
  */
-Directives.validateName = function( directiveName ){
+
+const Directive ={};
+
+Directive.isDirectiveName = function( directiveName ){
     //
     let parts = directiveName.split('-');
     if ( parts[0] !== Config.directivePrefix ) return false;
@@ -186,4 +190,19 @@ Directives.validateName = function( directiveName ){
     //return ( attrName.substring(0, (Config.directivePrefix.length+1)) == Config.directivePrefix + "-") ? attrName.substring(3) : false;
 };
 
-export { Directives }
+
+Directive.isBlocking = function( directiveName ){
+    const parts = directiveName.split('-');
+    const name = ( parts[0] === Config.directivePrefix ) ? parts[1] : directiveName;
+    if( !name.length ) throw new Error('Directive.isBlocking() : Directive does nit exist ('+directiveName+')');
+    return Directives[name].block === true ? true : false;
+};
+
+Directive.exist = function( directiveName ){
+    const parts = directiveName.split('-');
+    const name = ( parts[0] === Config.directivePrefix ) ? parts[1] : directiveName;
+    if( !name.length ) return false;
+    return Directives.hasOwnProperty(name);
+};
+
+export { Directive, Directives }

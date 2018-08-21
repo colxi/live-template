@@ -2,14 +2,18 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-14 13:07:21
+* @Last Modified time: 2018-08-20 13:12:33
 */
 
 /* global _DEBUG_ */
 
-import { Directives } from './core-directives.js';
+import { Directive  } from './core-directives.js';
 import { Placeholder } from './core-placeholder.js';
 
+
+// this file should be called collections
+//
+//
 
 /**
  * Template._Bindings holds two indexes :
@@ -19,6 +23,14 @@ import { Placeholder } from './core-placeholder.js';
  * with the placeholders strings (template tokens)
  */
 const Bindings = {
+    templates:  new Map(),
+    // bindings.templatd should be a weakmap
+    // elementReference : {
+    //      observer : mutationobserverid //to allow disconnect it in tempkate destroy
+    //      html: template inerHTML // to allow template reusage
+    //      id : ¿integer?
+    // }
+    //
     placeholders : {
         /*
         "placeholder_1" :  [
@@ -36,9 +48,9 @@ const Bindings = {
         (...)
         */
     },
-    events : new WeakMap(),
-    iterators : new WeakMap(),
-    elements : new WeakMap(),
+    events : new Map(),
+    iterators : new Map(),
+    elements : new Map(),
     /*
         elementReference : {
             "attributeName_1" : "tokenizedValueString",
@@ -70,7 +82,7 @@ const Bindings = {
                     // iterate all binded attributes
                     for(let attr in attr_list){
                         //
-                        if( Directives.validateName( attr ) ){
+                        if( Directive.isDirectiveName( attr ) ){
                             // is a Directive
                             console.log('placeholder.render(): addapt & uncomment following code');
                             //let context = Util.resolveKeyPath( attr_list[attr] );

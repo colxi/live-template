@@ -2,13 +2,13 @@
 * @Author: colxi
 * @Date:   2018-07-17 15:55:37
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-14 19:19:46
+* @Last Modified time: 2018-08-20 14:30:23
 */
 
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
 import { Util } from './core-util.js';
-import { Directives } from './core-directives.js';
+import { Directive } from './core-directives.js';
 import '../node_modules/deep-observer/src/deep-observer.js';
 import '../node_modules/keypath-resolve/src/keypath-resolve.js';
 
@@ -39,8 +39,11 @@ const Placeholder = {
         let placeholders = string.match( Config._getPlaceholdersExp ) || [];
         // remove duplicates!
         placeholders = Array.from( new Set(placeholders) );
-        placeholders = placeholders.map( current => Placeholder.removeDelimiters(current) );
-        // strip delimiters from token...
+        // remove delimiters (it trims the resulting values too)
+        placeholders = placeholders.map( p => Placeholder.removeDelimiters(p) );
+        // remove empty strings
+        placeholders = placeholders.filter( p => p.length ? true : false );
+
         return placeholders;
     },
     /**
@@ -62,7 +65,7 @@ const Placeholder = {
                     if( !attributes.hasOwnProperty(currentAttr) ) continue;
                     let placeholdersPartial = Placeholder.getFromString(  attributes[currentAttr] ) ;
 
-                    if( Directives.validateName( currentAttr ) && !placeholdersPartial.lenght ){
+                    if( Directive.isDirectiveName( currentAttr ) && !placeholdersPartial.lenght ){
                         // if value is quoted, call binder[bindername].subscribte
                         // with the quoted value
                         let v = attributes[currentAttr].trim();

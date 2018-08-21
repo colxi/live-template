@@ -2,94 +2,147 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-14 14:10:04
+* @Last Modified time: 2018-08-20 23:12:10
 */
-import { Config } from './core-config.js';
+
+/* global _DEBUG_ */
+
+import { Debug } from './debugger/debugger.js';
 import { Bindings } from './core-bindings.js';
-import { Directives } from './core-directives.js';
+import { Directive , Directives } from './core-directives.js';
 import { Placeholder } from './core-placeholder.js';
 import { Util } from './core-util.js';
 
 
-
 const Unbind = {};
 
+/**
+ * [element description]
+ * @param  {[type]} element [description]
+ * @return {[type]}         [description]
+ */
 Unbind.element = function( element ){
-    _DEBUG_.red('Unbinding ELEMENT :', element.nodeType === Node.TEXT_NODE ? element.parentNode : element );
-    switch( element.nodeType ){
-        case Node.TEXT_NODE : {
-            let tokens = Placeholder.getFromTemplate( element );
-            tokens.forEach( placeholder =>{
-                //_unbindEvent_( element );
-                Unbind.placeholder( element,placeholder );
-            });
-            break;
-        }
-        case Node.ELEMENT_NODE : {
-            // get all children as Array instead of NodeList
-            let all = Array.from( element.querySelectorAll('*') );
-            // include in the array the Deleted root element
-            all.push(element);
-            all.forEach( child =>{
 
-                for(let attr in child.attributes){
-                    // block if attrName is not a property
-                    if( !child.attributes.hasOwnProperty(attr) ) continue;
-
-                    // if current attribute is a Custom Binder.. perform custom binding
-                    if( Directives.validateName( child.attributes[attr].name , Config.directivePrefix) ){
-                        if(Util.isStringQuoted( child.attributes[attr].value ) ) continue;
-
-                        let model = Util.resolveKeyPath( child.attributes[attr].value );
-
-                        if( !model ) console.log('Unbind.element() : model '+child.attributes[attr].value+' does mot exist')
-
-                        let binderName = child.attributes[attr].name.split('-');
-                        let binder = Directives.hasOwnProperty( binderName[1] ) ? Directives[ binderName[1] ] : Directives.default;
-                        binder.unbind( child , child.attributes[attr].value , binderName.slice(1) );
-                    }
-                }
-
-
-
-
-
-                // unbind all events
-                //_unbindEvent_( child );
-                let tokens = Placeholder.getFromTemplate(child);
-                tokens.forEach( placeholder => Unbind.placeholder( child,placeholder ) );
-
-                let textNodes = Util.getElementTextNodes( child );
-                textNodes.forEach( Unbind.element );
-                // TEXTCONTENT SEARCH (TEMPLATE)
-                //Template.Util.forEachTextNodeToken(child, Unbind.placeholder , true)
-                //
-            });
-            break;
-        }
-        default : {
-            //_DEBUG_('onDOMChange() : Unimplemented type of Node : ' + element.nodeType.toString() ,element);
+    // *************************************************************************
+    // INPUT VALIDATION
+    // *************************************************************************
+    //
+    // block if element is not an HTMLElement or a TEXT_NODE
+    if( !(element instanceof HTMLElement || element instanceof Text) ){
+        _DEBUG_.red('Unbind.element() : Only HTMLElements and TextNodes are allowed',element );
+        return false;
+    }
+    // Block if element is a SCRIPT or STYLE
+    if( element.nodeType === Node.ELEMENT_NODE){
+        if( element.tagName === 'SCRIPT' || element.tagName === 'STYLE' ){
+            _DEBUG_.red('Unbind.Element(): Script and Style Elements are ignored.' );
+            return false;
         }
     }
+
+
+    _DEBUG_.red('Unbind.element() : Unbinding ELEMENT :',  element );
+
+
+    // *************************************************************************
+    // ATTRIBUTES SCAN
+    // *************************************************************************
+    //
+    // If it's an Element Node, scan for Directive attributes, and
+    // perform the corresponding <Directive>.unbid method call for each valid
+    // directive attribute found
+    if( element.nodeType === Node.ELEMENT_NODE && element.hasAttributes() ){
+        const count = element.attributes.length;
+        for( let i=0 ; i < count; i++ ){
+            // get current attribute
+            const attribute = element.attributes[i];
+            //nif current attribute appears to be a directive...
+            if( Directive.isDirectiveName( attribute.name ) ){
+                // and Directive actually exists...
+                if( Directive.exist( attribute.name ) ){
+                    // if Directive attribute value is quoted, it behaves as a
+                    // constant, and no effective binding was performed, for that
+                    // reasons can be skipped
+                    if(Util.isStringQuoted( attribute.value ) ) continue;
+                    // retrieve the directive name and arguments parts, from
+                    // the attribute name
+                    const parts = attribute.name.split('-');
+                    const directiveName = parts[1];
+                    const directiveArgs = parts.slice(1);
+                    // call the Directive unbindng method
+                    Directives[ directiveName ].unbind( element , attribute.value , directiveArgs );
+                    // If Directive registered events in the element, retrieve
+                    // them, and iterate to unregister
+                    if( Bindings.events.has( element ) ){
+                        const events = Bindings.events.get( element );
+                        Object.keys(events).forEach( e => Unbind.event(element,e) );
+                    }
+                }else _DEBUG_.red('Unbind.Element(): Unregistered Directive attribute found('+attribute.name+'). Ignored.' );
+            }
+        }
+    }
+
+
+    // *************************************************************************
+    // BUILD COLLECTION OF NODES TO UNBIND
+    // *************************************************************************
+    //
+    // prepare collection of items to unbind. if provided element is a TextNode,
+    // only add itself to the collection, but if its an element node, add
+    // itself and also the direct child textnodes.
+    // If is an element node, prepare also a collction of direct childdren
+    // element nodes, for deep recursive unbinding
+    let nodes = [];
+    let childrenElements = [];
+    if( element.nodeType === Node.ELEMENT_NODE ){
+        // retrieve all the  element textnodes
+        nodes = Util.getElementTextNodes( element );
+        nodes.push( element );
+        // prepare array whith children elements
+        childrenElements = Array.from( element.children );
+    }else nodes.push( element );
+
+
+
+    // *************************************************************************
+    // UNBIND & RESTORE NODES ORIGINAL VALUES
+    // *************************************************************************
+    //
+    // iterate the array to perform unbindings
+    nodes.forEach( node =>{
+        // get the placeholders from the current item
+        Placeholder.getFromTemplate(node).forEach( placeholder =>{
+            // if placeholder exist in the bindings collection
+            if( Bindings.placeholders.hasOwnProperty( placeholder ) ){
+                // check if current item is binded to placeholder, and remove
+                // it if found
+                const index = Bindings.placeholders[placeholder].indexOf(node);
+                if (index !== -1) Bindings.placeholders[placeholder].splice(index, 1);
+                // if placeholder has no more bindngs, remove placeholder
+                // binding reference
+                if( !Bindings.placeholders[placeholder].length ){
+                    delete Bindings.placeholders[placeholder];
+                }
+            }
+        } );
+        Bindings.elements.delete( node );
+    });
+
+
+    // *************************************************************************
+    // UNBIND CHILDREN NODES
+    // *************************************************************************
+    //
+    childrenElements.forEach( Unbind.element );
+
+
+    Debug.loadTab();
     return true;
 };
 
-Unbind.placeholder = function (element , placeholder){
-    if(typeof placeholder !== 'string'){
-    throw new Error('invalid pleceholder')
-    }
-    _DEBUG_.red('Unbinding PLACEHOLDER from element :', placeholder, element.nodeType === 3 ? element.parentNode :element );
 
-    if( Bindings.placeholders.hasOwnProperty( placeholder ) ){
-        let index = Bindings.placeholders[placeholder].indexOf(element);
-        if (index !== -1) Bindings.placeholders[placeholder].splice(index, 1);
-        if( !Bindings.placeholders[placeholder].length ){
-            Bindings.placeholders[placeholder] = null;
-            delete Bindings.placeholders[placeholder];
-            //Bindings.elements.delete( element )
-        }
-    }
-};
+
+
 
 Unbind.event = function( element , event = '' ){
     // if element has event bindings...

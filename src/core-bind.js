@@ -2,182 +2,182 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-13 18:35:26
+* @Last Modified time: 2018-08-20 22:17:36
 */
 
 /* global _DEBUG_ */
 
-import { Config } from './core-config.js';
+
 import { Bindings } from './core-bindings.js';
-import { Directives } from './core-directives.js';
+import { Directive , Directives } from './core-directives.js';
 import { Placeholder } from './core-placeholder.js';
 import { Util } from './core-util.js';
 import '../node_modules/deep-observer/src/deep-observer.js';
 import '../node_modules/keypath-resolve/src/keypath-resolve.js';
 
+const Keypath  = window.Keypath;
+const Observer = window.Observer;
+
 
 const Bind = {};
 
+/**
+ * [element description]
+ * @param  {[type]} element [description]
+ * @return {[type]}         [description]
+ */
 Bind.element = function( element ){
-    _DEBUG_.yellow('Bind.Element(): Scanning Element :', element );
-
-    // container to store all detected bindings, to initialize them when
-    // the binding is completed (it can't be done on the fly because it could
-    // destroy the template, before is stored)
-    let uninitializedPlaceholders = [];
-    let blockBindingNested = false;
-
+    // *************************************************************************
+    // INPUT VALIDATION
+    // *************************************************************************
     //
-    //
-    // Allowed : Node.ELEMENT_NODE , Node.TEXT_NODE
-    //
-    //
-
-    // element_node
-    if( element.nodeType === Node.ELEMENT_NODE ){
-        if( element.tagName === 'SCRIPT' || element.tagName === 'STYLE'){
-            _DEBUG_.darkyellow('Bind.Element(): Element type ('+ element.tagName + ') is not Bindable. Ignore' );
+    // block if element is not an HTMLElement or a TEXT_NODE
+    if( !(element instanceof HTMLElement || element instanceof Text) ){
+        _DEBUG_.darkyellow('Bind.element() : Only HTMLElements and TextNodes are allowed' );
+        return false;
+    }
+    // Block if element is a SCRIPT or STYLE
+    if( element.nodeType === Node.ELEMENT_NODE){
+        if( element.tagName === 'SCRIPT' || element.tagName === 'STYLE' ){
+            _DEBUG_.darkyellow('Bind.Element(): Script and Style Elements can\'t be binded.' );
             return false;
         }
+    }
+
+
+    // uninitializedPlaceholders (Set) : all detected unique placeholders will
+    // be stored in this Set. This set will be used in the last step of binding :
+    // the placeholders values initialization.
+    const uninitializedPlaceholders = new Set();
+
+    // some Directives can block the binding of the Element Contents and child.
+    // This flag will be set the true if a blocking Directive is found.
+    let hasBlockingDirective = false;
+
+    _DEBUG_.yellow('Bind.Element(): Scanning Element :', element );
+
+
+    // *************************************************************************
+    // ATTRIBUTES SCAN
+    // *************************************************************************
+    //
+    // If it's an Element Node, start analyzing it's attributes and collecting
+    // and binding the placeholders within. If a Directive attribute is found,
+    // the corresponding Directive Binding will be performed too.
+    if( element.nodeType === Node.ELEMENT_NODE && element.hasAttributes() ){
         // Iterate each Element attribute
-        for(let attr in element.attributes){
-            // block if attrName is not a property
-            if( !element.attributes.hasOwnProperty(attr) ) continue;
+        const count = element.attributes.length;
+        for( let i=0 ; i < count; i++ ){
+            // get current attribute
+            const attribute = element.attributes[i];
 
-            // collect all the placeholders from the attribute in an array
-            const placeholders = Placeholder.getFromString( element.attributes[attr].value );
+            // if current attribute is a Directive attribute, check if directive
+            // name has been registered. If directive exists, perform the
+            // directive binding, and set the hasBlockingDirective flag ( when
+            // directive requires )
+            if( Directive.isDirectiveName( attribute.name ) ){
+                if( Directive.exist(attribute.name) ){
+                    _DEBUG_.darkyellow('Bind.Element(): Directive Attribute found in element :',  attribute.name, '=','"'+attribute.value+'"' );
+                    //
+                    _bind_Directive( element , attribute.name , attribute.value.trim() );
+                    if( !hasBlockingDirective && Directive.isBlocking(attribute.name) ) hasBlockingDirective = true;
+                }else _DEBUG_.darkyellow('Bind.Element(): Unregistered Directive attribute found('+attribute.name+'). Ignored.' );
 
-            if( placeholders.length) _DEBUG_.darkyellow('Bind.Element(): Placeholder(s) found in attribute :',  element.attributes[attr].name, '=','"'+element.attributes[attr].value+'"' );
-
-            // and store them to in the list of placeholders to initialize
-            uninitializedPlaceholders = uninitializedPlaceholders.concat( placeholders );
-
-            // if current attribute is a Custom Binder.. perform custom binding
-            if( Directives.validateName( element.attributes[attr].name , Config.directivePrefix) ){
-                _DEBUG_.darkyellow('Bind.Element(): Directive found in elemnt :',  element.attributes[attr].name, '=','"'+element.attributes[attr].value+'"' );
-
-                Bind.elementDirective( element , element.attributes[attr].name );
-                let customBinder = element.attributes[attr].name.split('-')[1];
-                if( Directives.hasOwnProperty(customBinder) && Directives[customBinder].block === true ) blockBindingNested = true;
-                continue; // ¿ WHY CONTINUE ?
+                // TODO : allow placeholders in directives...meanwhile, continue
+                // with next attribute...
+                continue;
             }
 
-            // iterate all placeholders detected in the attribute value
-            // and perform the binding of each one
-            placeholders.forEach( placeholder=>{
-                Bind.elementAttribute( element , element.attributes[attr].name , element.attributes[attr].value );
-                // bind the element with the placeholder
-                Bind.placeholder(element, placeholder);
+            // get an array with all the placeholders declared inside the
+            // current attribute value
+            const placeholders = Placeholder.getFromString( attribute.value );
+            if( placeholders.length) _DEBUG_.darkyellow('Bind.Element(): Placeholder(s) found in attribute :',  attribute.name, '=','"'+attribute.value+'"' );
+
+            // iterate each found placeholder, perform the corresponding
+            // bindings, and include the placeholder in the uninitialized list
+            placeholders.forEach( placeholder => {
+                // add placeholder to the list of placeholders to initialize
+                uninitializedPlaceholders.add(placeholder);
+                // bind the attribute ( to Bindings.elements )
+                // bind the placeholder ( to Bindings.placeholders )
+                _bind_Attribute( element , attribute.name , attribute.value );
+                _bind_Placeholder(element, placeholder);
             });
         }
     }
 
-    if( !blockBindingNested ){
-        // get all the textNodes (if current node is a textNode only operate with
-        // it), retrieve the placeholder within, and bind them to the element
+
+    // *************************************************************************
+    // TEXTNODES SCAN
+    // *************************************************************************
+    //
+    // if hasBlockingDirective flag has not been set by any Directive,
+    // scan for children textnodes
+    if( !hasBlockingDirective ){
+        // get all the textNodes from the element (if element is a textNode ,
+        // the resulting array will contain only the textnode )
         Util.getElementTextNodes( element ).forEach( textNode =>{
-            const textNodePlaceholders = Placeholder.getFromString( textNode.nodeValue );
-            if(textNodePlaceholders.length){
-                _DEBUG_.darkyellow('Bind.Element(): Placeholder(s) found in textNode :', textNodePlaceholders );
-
-                textNodePlaceholders.forEach( placeholder =>{
-                    uninitializedPlaceholders.push( placeholder );
-
-                    Bind.textNode( textNode, textNode.nodeValue );
-                    Bind.placeholder(textNode, placeholder);
-                });
-            }
-        });
-
-    }
-
-    // remove duplicates from uninitializedPlaceholders
-    uninitializedPlaceholders = Array.from(new Set(uninitializedPlaceholders));
-    // no more tasks pending! initialize placeholders in element!
-    if( uninitializedPlaceholders.length){
-        _DEBUG_.darkyellow('Bind.Element(): Interpolating Placeholder(s)' );
-        uninitializedPlaceholders.forEach( placeholder => {
-            /*
-            let model;
-            try{
-                model = Keypath.resolveContext( Observer._enumerate_() , placeholder);
-                //model.context[model.property] = model.context[model.property];
-            }catch(e){
-                console.warn('Bind.elemnet() : todo->set undeclared placeholder to empty value. Affected :', placeholder);
-            }
-            */
-            Bindings.render( placeholder  );
-        });
-    }else{
-        _DEBUG_.darkyellow('Bind.Element(): Nothing to Bind in element.');
-    }
-
-    if( !blockBindingNested ){
-        // if element has child nodes and are Element Nodes (text nodes have already
-        // been binded), bind them recursively
-        let childNodes = Array.from(element.childNodes);
-        childNodes  = childNodes.filter(child=> child.nodeType === Node.ELEMENT_NODE );
-        if( childNodes.length){
-            _DEBUG_.darkyellow('Bind.Element(): Element has child Nodes...');
-            childNodes.forEach( childNode =>{
-                Bind.element( childNode );
+            // extract the placeholders from the current textNode
+            const placeholders = Placeholder.getFromString( textNode.nodeValue );
+            if( placeholders.length) _DEBUG_.darkyellow('Bind.Element(): Placeholder(s) found in textNode :', placeholders );
+            // iterate each found placeholder, perform the corresponding
+            // bindings, and include the placeholder in the uninitialized list
+            placeholders.forEach( placeholder =>{
+                // add placeholder to the list of placeholders to initialize
+                uninitializedPlaceholders.add(placeholder);
+                // bind the textnode ( to Bindings.elements )
+                // bind the placeholder ( to Bindings.placeholders )
+                _bind_TextNode( textNode, textNode.nodeValue );
+                _bind_Placeholder(textNode, placeholder);
             });
-        }
+        });
+
     }
+
+
+    // *************************************************************************
+    // INITIALIZE PLACEHOLDERS VALUES
+    // *************************************************************************
+    //
+    // Render in the DOM the current value of each detected placeholder
+    if( uninitializedPlaceholders.size) _DEBUG_.darkyellow('Bind.Element(): Interpolating Placeholder(s)' );
+    else _DEBUG_.darkyellow('Bind.Element(): Nothing to Bind in element.');
+
+    uninitializedPlaceholders.forEach( placeholder => Bindings.render(placeholder) );
+
+
+    // *************************************************************************
+    // BIND CHILDREN NODES
+    // *************************************************************************
+    //
+    // If no hasBlockingDirective flag has been set, and element is an
+    // element Node, get all children Nodes (textnodes excluded) and call
+    // recursively this Binding function, for each one.
+    if( !hasBlockingDirective && element.nodeType === Node.ELEMENT_NODE){
+        // if element has children nodes (Element Nodes) bind them recursively
+        const childNodes = Array.from(element.children);
+        if( childNodes.length) _DEBUG_.darkyellow('Bind.Element(): Element has child Nodes...');
+        childNodes.forEach( child => Bind.element(child) );
+    }
+
+
+    Debug.loadTab();
+
+    return true;
 };
 
-Bind.textNode = function( textNode , value ){
+
+const _bind_TextNode = function( textNode , value ){
     Bindings.elements.set( textNode, value );
     return true;
 };
 
-
-Bind.elementDirective = function( element , customBinderName ){
-    // get the value of the customBinder attribute
-    let stringValue = element.getAttribute( customBinderName ).trim();
-
-    _DEBUG_.green('Binding DIRECTIVE to element :', customBinderName, stringValue, element );
-
-    // split the customBinder Name in tokens  -> 'pg-on-click' = ['pg','on', 'click']
-    let customBinder = customBinderName.split('-');
-
-    if( Util.isStringQuoted( stringValue ) ){
-        // if value is quoted, call binder[customBinder].subscribte
-        // with the quoted value (quotes stripped)
-        Directives[ customBinder[1] ].subscribe( element, undefined , customBinder.slice(1),  stringValue.slice(1, -1) );
-        // TODO...
-        // don't perform BINDING! (there is no variable value to bind)
-    }else{
-        // TODO: stringValue can contain multiple placeHolders... right now it
-        // only takes and proces the first one.. MUST HANDLE AS MANY AS DETECTED!
-        let placeholder = stringValue;
-
-        Bind.placeholder(element, placeholder);
-        Bind.elementAttribute( element , customBinderName , stringValue);
-
-
-        // get placeholder model context
-        //let model = Util.resolveKeyPath(placeholder);
-
-        // determine the apropiate binder (if requested binder does not exist call default one)
-        let binder = Directives.hasOwnProperty(customBinder[1]) ? Directives[customBinder[1]] : Directives.default;
-        // bind and subscribe
-        binder.bind(element, placeholder , customBinder.slice(1) );
-        //binder.bind(element, model.context, model.key, model.context[model.key] ,  customBinder.slice(1) );
-        let model = Util.resolveKeyPath(placeholder);
-
-        if( !model ) console.log('Bind.elementdirective() : model ' + placeholder + ' or prperty does mot exist');
-        binder.subscribe( element, placeholder, customBinder.slice(1) , model ? model.context[model.key] : '');
-    }
-    return true;
-};
-
-Bind.elementAttribute = function( element, attribute, value){
+const _bind_Attribute = function( element, attribute, value){
     // if current Element already has attribute bindings...
     if( Bindings.elements.has(element) ){
         // update the entry for the current element in the
         // Bindings Element index with the new attribute and its Template String
-        let bindedAttributes =  Bindings.elements.get(element);
+        const bindedAttributes =  Bindings.elements.get(element);
         bindedAttributes[ attribute ] = value;
         Bindings.elements.set(element,bindedAttributes );
     }else{
@@ -188,22 +188,60 @@ Bind.elementAttribute = function( element, attribute, value){
     return true;
 };
 
-Bind.placeholder = function( element , placeholder ){
-    // block if no binding name has been provided
-    if( placeholder.trim() === undefined ) throw new Error('Imposible to perform binding. Binding name not provided in Element');
-
-    _DEBUG_.green('Binding PLACEHOLDER to element :', placeholder, element.nodeType === 3 ? element.parentNode :element);
+const _bind_Placeholder = function( element , placeholder ){
+    _DEBUG_.green('Binding PLACEHOLDER to element :', placeholder, element);
 
     // if the tokenName has not been registered previously, generate an empty entry
     if( !Bindings.placeholders.hasOwnProperty(placeholder) ) Bindings.placeholders[placeholder] = [];
     // link the element with the placeholder in the Bindings registry
     Bindings.placeholders[placeholder].push(element);
 
-    // TODO: add an observer to the element to track changes in its structure/Bindings
-
     // done!
     return true;
 };
+
+const _bind_Directive = function( element , directive, value){
+
+    _DEBUG_.green('Binding DIRECTIVE to element :', directive, value, element );
+
+    // split the directive string in tokens
+    // Eg. 'pg-on-click' => ['pg','on','click']
+    const parts = directive.split('-');
+    const directiveName = parts[1];
+    const directiveArgs = parts.slice(1);
+
+    // if Directive attribute is quoted, its content behaves as an immutable value
+    // (constant), and it's not considered a placeholder, then no Element
+    // binding needs to be performed. However then Directive .subscribe
+    // method must be called, to trigger the Directive action.
+    if( Util.isStringQuoted( value ) ){
+        _DEBUG_.green('_bind_Directive() : Directive value is a constant. Skipping Binding.');
+        Directives[ directiveName ].subscribe( element, undefined , directiveArgs, Util.unquoteString( value ) );
+    }else{
+        const placeholder = value;
+        //  Bind the element to the placeholder (Bindings.placeholder)
+        //  and bind the placeholder to the element (Bindings.element)
+        _bind_Placeholder(element, placeholder);
+        _bind_Attribute( element , directive , placeholder);
+
+        // Execute then <Directive>.bind method
+        Directives[directiveName].bind(element, placeholder , directiveArgs );
+
+        // Execute then <Directive>.subscribe method. If th placeholder Keypath
+        // can't be resolved, call subscribe with an empty value.
+        if( Keypath.exist( Observer._enumerate_(), placeholder) ){
+            const model = Keypath.resolveContext( Observer._enumerate_() , placeholder);
+            Directives[directiveName].subscribe( element, placeholder, directiveArgs , model.context[model.property] );
+        }else{
+            _DEBUG_.green('_bind_Directive() : Model or model property does mot exist. ('+placeholder+')');
+            Directives[directiveName].subscribe( element, placeholder, directiveArgs ,  '');
+        }
+    }
+    return true;
+};
+
+
+
 
 Bind.event = function(element, type, handler){
     let bindedEvents = {};
@@ -231,5 +269,4 @@ Bind.event = function(element, type, handler){
 
 
 export { Bind };
-
 

@@ -2,39 +2,20 @@
 <html>
 <head>
     <title></title>
-    <!--
-    <meta lang="{myApp.lang}-{myApp.region}">
-    -->
+    <script src="../live-template.js" type="module"></script>
+    <script src="./main.js"></script>
 </head>
 <body>
     <div id="view">
-        This is {myApp.test} <br>
-        Number {myApp.child.a}-{myApp.child.b}
-        <div style="color:{myApp.color}">I should be {myApp.color}</div>
+        <input type="text" pg-value="myApp.name"> <br>
+        <input type="text" pg-value="{myApp.name}"> <br>
+        <input type="text" pg-value="'myApp.name'"> <br>
+        Name : {myApp.name} <br>
+        Cellphone : {myApp.phone.prefix} {myApp.phone.number} <br>
+        Color : <span style="color:{myApp.color}">{myApp.color}</span> <br>
     </div>
-
-    <div>
-        <input type="button" onclick="Template.bind('#view');" value="Bind Div">
-        <input type="button" onclick="Template.unbind('#view');" value="Unind Div">
-        <input type="button" onclick="createModel()" value="Create model">
-    </div>
-
+    <input type="button" onclick="newCard()" value="Generate Card">
+    <input type="button" onclick="destroyCard()" value="Destroy Card">
 </body>
-<script src="../live-template.js" type="module"></script>
-<script>
 
-function createModel(){
-    new Template.Model('myApp',{
-        test:'a test',
-        color:'red',
-        child:{
-            a:111,
-            b:222
-        }
-    });
-}
-
-window.onload = ()=>Debug.showDebuger();
-
-</script>
 </html>
