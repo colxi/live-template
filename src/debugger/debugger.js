@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 12:50:51
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-19 15:38:05
+* @Last Modified time: 2018-08-21 13:01:25
 */
 import { Bindings } from './../core-bindings.js';
 let currentTab ='placeholders';
@@ -55,14 +55,6 @@ const Debug = {
     },
     showDebuger: function(){
 
-        if( !document.getElementById('ltd-styles') ){
-            // debugger UI styles are not injected
-            let s = document.createElement('link');
-            s.rel='stylesheet';
-            s.href='../src/debugger/style.css';
-            s.id='ltd-styles';
-            document.head.appendChild(s);
-        }
         //document.body.innerHTML+=debugerUI;
 
 

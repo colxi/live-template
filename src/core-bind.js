@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-20 22:17:36
+* @Last Modified time: 2018-08-21 15:14:53
 */
 
 /* global _DEBUG_ */
@@ -216,7 +216,9 @@ const _bind_Directive = function( element , directive, value){
     // method must be called, to trigger the Directive action.
     if( Util.isStringQuoted( value ) ){
         _DEBUG_.green('_bind_Directive() : Directive value is a constant. Skipping Binding.');
-        Directives[ directiveName ].subscribe( element, undefined , directiveArgs, Util.unquoteString( value ) );
+        if( Directives[directiveName].hasOwnProperty('subscribe') ){
+            Directives[ directiveName ].subscribe( element, undefined , directiveArgs, Util.unquoteString( value ) );
+        }
     }else{
         const placeholder = value;
         //  Bind the element to the placeholder (Bindings.placeholder)
@@ -225,16 +227,19 @@ const _bind_Directive = function( element , directive, value){
         _bind_Attribute( element , directive , placeholder);
 
         // Execute then <Directive>.bind method
-        Directives[directiveName].bind(element, placeholder , directiveArgs );
-
+        if( Directives[directiveName].hasOwnProperty('bind') ){
+            Directives[directiveName].bind(element, placeholder , directiveArgs );
+        }
         // Execute then <Directive>.subscribe method. If th placeholder Keypath
         // can't be resolved, call subscribe with an empty value.
-        if( Keypath.exist( Observer._enumerate_(), placeholder) ){
-            const model = Keypath.resolveContext( Observer._enumerate_() , placeholder);
-            Directives[directiveName].subscribe( element, placeholder, directiveArgs , model.context[model.property] );
-        }else{
-            _DEBUG_.green('_bind_Directive() : Model or model property does mot exist. ('+placeholder+')');
-            Directives[directiveName].subscribe( element, placeholder, directiveArgs ,  '');
+        if( Directives[directiveName].hasOwnProperty('subscribe') ){
+            if( Keypath.exist( Observer._enumerate_(), placeholder) ){
+                const model = Keypath.resolveContext( Observer._enumerate_() , placeholder);
+                Directives[directiveName].subscribe( element, placeholder, directiveArgs , model.context[model.property] );
+            }else{
+                _DEBUG_.green('_bind_Directive() : Model or model property does mot exist. ('+placeholder+')');
+                Directives[directiveName].subscribe( element, placeholder, directiveArgs ,  '');
+            }
         }
     }
     return true;

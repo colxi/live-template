@@ -2,10 +2,10 @@
 * @Author: colxi
 * @Date:   2018-08-14 19:51:28
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-19 15:30:04
+* @Last Modified time: 2018-08-21 13:28:29
 */
 
-:root {
+:host{
     --color-light-gray: #cbcbcb;
     --color-light-blue: #03A9F4;
     --color-light-red: #ff5353;
@@ -20,7 +20,8 @@
     border:1px dashed grey;
 }
 
-#ltd-container{
+
+:host{
     position: absolute;
     bottom: 0pc;
     left: 0pc;
@@ -99,6 +100,8 @@
 .ltd-menu > .ltd-menu-unbind {
     color: var(--color-light-red) !important;
 }
+
+
 /* TAB */
 
 #ltd-tab-viewport{

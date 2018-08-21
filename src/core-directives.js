@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-20 23:06:49
+* @Last Modified time: 2018-08-21 15:24:12
 */
 
 import { Config } from './core-config.js';
@@ -18,35 +18,34 @@ import '../node_modules/keypath-resolve/src/keypath-resolve.js';
 * @Last Modified time: 2018-07-17 15:14:21
 */
 const Directives = {
-    // pg-value
     value : {
         bind : function(element, keyPath , binderType ){
-            console.log("binding FOR: pg-value")
             Bind.event( element, 'input', e=>this.publish(element, keyPath , binderType, e.target.value) );
-        },
-        unbind : function( element, model, key , value , binderType){
-            console.log("unbinding FOR: pg-value");
-            //Unbind.event( element , 'input' );
-        },
-        publish : function(element, keyPath , binderType, value){
-            // change in DOM must be setted to _MODELS_ Object
-            let model = Keypath.resolveContext( Observer._enumerate_() , keyPath);
-            if(model) model.context[ model['property'] ] = value;
-            else console.log('model or prperty does mot exist')
         },
         subscribe : function(element , keyPath , binderType, value){
             // change in object must be reflected in DOM
             element.value = value || '' ;
         },
+        publish : function(element, keyPath , binderType, value){
+            // change in DOM must be setted to _MODELS_ Object
+            let model = Keypath.resolveContext( Observer._enumerate_() , keyPath);
+            if(model) model.context[ model['property'] ] = value;
+            else console.log('model or property does mot exist');
+        }
     },
-    /*
+    on : {
+        bind : function(element, keyPath, binderType){
+            Bind.event( element, binderType[1], e=> this.publish(element, keyPath, binderType, e) );
+        },
+        publish : function(element , keyPath , binderType, value){
+            Keypath.resolve(Observer._enumerate_(), keyPath)(value)
+        }
+    },
     if : {
-        bind : function(element, model, key , value , binderType){},
-        unbind : function( element, model, key , value , binderType ){},
-        publish : function(element, model, key , value , binderType){},
-        subscribe : function(element, model, key , value , binderType){
+        subscribe : function(element , keyPath , binderType, value){
             // handle "true" "false" strings and "0" and "1" stringss
             if(value) value = JSON.parse(value);
+            console.log('***********************',value)
             // show the element if value is True, or any other value not
             // interpreted as False (like null, undefined, 0 ...)
             if( value || value === undefined){
@@ -54,9 +53,8 @@ const Directives = {
             }else{
                 element.style.setProperty("display", "none", "important");
             }
-        },
+        }
     },
-    */
     model : {
         bind : function(element, model, key , value , binderType){},
         unbind : function( element, model, key , value , binderType ){},
@@ -103,19 +101,7 @@ const Directives = {
         publish : function(element, model, key , value , binderType){},
         subscribe : function(element, model, key , value , binderType){},
     },
-    on : {
-        bind : function(element, model, key , value , binderType){
-            //console.log("binding FOR on-"+binderType[1], model[key])
-            Bind.event( element, binderType[1], e=>model[key](e) );
-        },
-        unbind : function(element, model, key , value , binderType){
-            console.log ("unbinding FOR on-"+binderType[1]);
-            Unbind.event( element , binderType[1] );
 
-        },
-        publish : function(element, model, key , value , binderType){},
-        subscribe : function(element, model, key , value , binderType){},
-    },
     for : {
         block : true,
         bind : function(element, model, key , value , binderType){
@@ -162,11 +148,7 @@ const Directives = {
     },
     // pg-unknown :  undeclared binders perform default action...
     */
-    default : {
-        bind: function(element, model, key , value , binderType){
-            _DEBUG_('DEFAULT BINDER bind():',element,model,key,binderType);
-        }
-    }
+
 };
 
 /**

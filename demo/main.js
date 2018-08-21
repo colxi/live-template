@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 22:58:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-16 13:41:05
+* @Last Modified time: 2018-08-21 15:22:30
 */
 
 var  cardHTML;
@@ -69,12 +69,14 @@ function destroyCard(){
 window.onload = ()=>{
     cardHTML = document.getElementById('view').innerHTML;
     Debug.showDebuger();
-    new Template.Model('myApp',{
-        name:'',
-        color:'',
+    myApp = new Template.Model('myApp', {
+        name : '',
+        age:11,
+        color : '',
         phone:{
-            prefix:'',
-            number: ''
-        }
+            prefix : '',
+            number : ''
+        },
+        alert : function(){ alert('hi '+ myApp.name) }
     });
 };

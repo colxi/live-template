@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-20 23:12:10
+* @Last Modified time: 2018-08-21 15:15:27
 */
 
 /* global _DEBUG_ */
@@ -70,7 +70,9 @@ Unbind.element = function( element ){
                     const directiveName = parts[1];
                     const directiveArgs = parts.slice(1);
                     // call the Directive unbindng method
-                    Directives[ directiveName ].unbind( element , attribute.value , directiveArgs );
+                    if( Directives[directiveName].hasOwnProperty('unbind') ){
+                        Directives[ directiveName ].unbind( element , attribute.value , directiveArgs );
+                    }
                     // If Directive registered events in the element, retrieve
                     // them, and iterate to unregister
                     if( Bindings.events.has( element ) ){

@@ -6,13 +6,16 @@
     <script src="./main.js"></script>
 </head>
 <body>
-    <div id="view">
+    <div id="view" style="padding:50px;">
         <input type="text" pg-value="myApp.name"> <br>
-        <input type="text" pg-value="{myApp.name}"> <br>
-        <input type="text" pg-value="'myApp.name'"> <br>
+        <input type="text" pg-value="myApp.age"> <br>
+        <input type="button" pg-on-click="myApp.alert" value="Say hi {myApp.name}"> <br>
+
         Name : {myApp.name} <br>
+        Age : {myApp.age} <br>
         Cellphone : {myApp.phone.prefix} {myApp.phone.number} <br>
         Color : <span style="color:{myApp.color}">{myApp.color}</span> <br>
+        <div pg-if="myApp.age">Is not born!</div>
     </div>
     <input type="button" onclick="newCard()" value="Generate Card">
     <input type="button" onclick="destroyCard()" value="Destroy Card">
