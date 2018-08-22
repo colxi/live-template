@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 22:58:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-21 23:34:07
+* @Last Modified time: 2018-08-22 10:03:22
 */
 
 var  cardHTML;
@@ -138,7 +138,7 @@ var cards = [
 
 
 function newCard(){
-    destroyCard()
+    //destroyCard()
     let i = parseInt( Math.floor( Math.random()*5) );
     console.log('random card id',i)
     document.getElementById('view').innerHTML = cardHTML;
@@ -164,6 +164,10 @@ window.onload = ()=>{
             number : ''
         },
         address:[],
-        alert : function(){ alert('hi '+ myApp.name) }
+        alert : function(){ alert('hi '+ myApp.name) },
+        deleteAddress : function(e){
+            let index = e.target.dataset.index
+            myApp.address.splice(index,1)
+        }
     });
 };
