@@ -7,15 +7,17 @@
 </head>
 <body>
     <div id="view" style="padding:50px;">
-        <input type="text" pg-value="myApp.name"> <br>
-        <input type="text" pg-value="myApp.age"> <br>
+        Name : <input type="text" pg-value="myApp.name"> <span pg-if="myApp.name">Ok!</span> <br>
+        Color : <input type="text" pg-value="myApp.color"> <span pg-if="myApp.color.length">Ok!</span> <br>
         <input type="button" pg-on-click="myApp.alert" value="Say hi {myApp.name}"> <br>
 
         Name : {myApp.name} <br>
-        Age : {myApp.age} <br>
         Cellphone : {myApp.phone.prefix} {myApp.phone.number} <br>
         Color : <span style="color:{myApp.color}">{myApp.color}</span> <br>
-        <div pg-if="myApp.age">Is not born!</div>
+        Address:
+        <div pg-for-address="myApp.address" style='padding:10px'>
+            <div>Street {address.street}, {address.num}</div>
+        </div>
     </div>
     <input type="button" onclick="newCard()" value="Generate Card">
     <input type="button" onclick="destroyCard()" value="Destroy Card">

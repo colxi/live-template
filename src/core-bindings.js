@@ -2,13 +2,14 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-20 13:12:33
+* @Last Modified time: 2018-08-21 21:29:48
 */
 
 /* global _DEBUG_ */
 
 import { Directive  } from './core-directives.js';
 import { Placeholder } from './core-placeholder.js';
+import { Directives } from './core-directives.js';
 
 
 // this file should be called collections
@@ -65,37 +66,45 @@ const Bindings = {
         }
         (...)
     */
+
+   // must be in core-subscribe.js
     render( placeholder ){
         // if placeholder it's been previously Binded to any element(s)
         if( Bindings.placeholders.hasOwnProperty(placeholder) ){
             // iterate each binded element to the placeholder...
             Bindings.placeholders[placeholder].forEach( element =>{
 
-                if(element.nodeType === Node.TEXT_NODE){
+                // *************************************************************************
+                // ELEMENT NODE
+                // *************************************************************************
+                //
+                if( element.nodeType === Node.ELEMENT_NODE && element.hasAttributes() ){
+                    // Is an element attribute(s)
+                    // retrieve the element attributes with bindings
+                    let bindedAttributes = Bindings.elements.get(element);
+                    // iterate all binded attributes
+                    for(let attribute in bindedAttributes){
+                        if( !bindedAttributes.hasOwnProperty(attribute) ) continue;
+                        //
+                        if( Directive.isDirectiveName( attribute ) && Directive.exist( attribute )){
+                            // is a Directive
+                            const parts = attribute.split('-');
+                            const directiveName = parts[1];
+                            const directiveArgs = parts.slice(1);
+                            const value = Keypath.resolve( Observer._enumerate_(), placeholder );
+                            if(Directives[directiveName].hasOwnProperty('subscribe')){
+                                Directives[directiveName].subscribe(element, placeholder, directiveArgs, value );
+                            }
+                        }else{
+                            // is a regular attribute
+                            _DEBUG_.lightblue('Bindings.render(): Updating placeholder in Attribute ...' , attribute+'='+bindedAttributes[attribute] );
+                            element.setAttribute( attribute,  Placeholder.populateString( bindedAttributes[attribute] ) );
+                        }
+                    }
+                }else{
                     // if element is a textNode update it...
                     _DEBUG_.lightblue('Bindings.render(): Updating placeholder in texNode...' , placeholder);
                     element.textContent = Placeholder.populateString( Bindings.elements.get(element) ) ;
-                }else{
-                    // Is an element attribute(s)
-                    // retrieve the element attributes with bindings
-                    let attr_list = Bindings.elements.get(element);
-                    // iterate all binded attributes
-                    for(let attr in attr_list){
-                        //
-                        if( Directive.isDirectiveName( attr ) ){
-                            // is a Directive
-                            console.log('placeholder.render(): addapt & uncomment following code');
-                            //let context = Util.resolveKeyPath( attr_list[attr] );
-                            //let binderType = attr.split('-');
-                            //Directives[ binderType[1] ].subfscribe(element, attr_list[attr] , binderType.slice(1), context.model[context.key] );
-                        }else{
-                            if( !attr_list.hasOwnProperty(attr) ) continue;
-                            if(attr !== 'textNode'){
-                                _DEBUG_.lightblue('Bindings.render(): Updating placeholder in Attribute ...' , attr_list[attr] );
-                                element.setAttribute( attr,  Placeholder.populateString( attr_list[attr] ) );
-                            }
-                        }
-                    }
                 }
 
             });
