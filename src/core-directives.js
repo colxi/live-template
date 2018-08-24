@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-21 23:25:01
+* @Last Modified time: 2018-08-23 20:37:18
 */
 
 import { Config } from './core-config.js';
@@ -57,26 +57,19 @@ const Directives = {
     for : {
         block : true,
         bind : function(element, keypath , binderType){
-            console.log('--------------------');
-            console.log(keypath);
             console.log('binding FOR for-'+binderType[1] );
 
+            if(  Keypath.exist(Observer._enumerate_(), keypath) ){
+                let value= Keypath.resolve(Observer._enumerate_(),keypath);
+                Bindings.iterators.set( value, [{
+                    element:element,
+                    binderType:binderType,
+                    html:element.innerHTML,
+                    index:element.getAttribute( Config.directivePrefix + ':index' )
+                }] );
+                element.innerHTML = '';
+            }else throw new Error('directives.for(): model does not exist!!! '+placeholder)
 
-            let model= Keypath.resolveContext(Observer._enumerate_(),keypath)
-            let value = model.context[model.property] ;
-            if( typeof model.context[model.property] === 'undefined'){
-                console.log('binding interatorr value not exists',  model.context[model.property] );
-                model.context[model.property]  = [];
-                value =  model.context[model.property] ; // reassign value to returned proxy
-            }
-            console.log('created array...', model.context[model.property] , value);
-            Bindings.iterators.set( value, [{
-                element:element,
-                binderType:binderType,
-                html:element.innerHTML,
-                index:element.getAttribute( Config.directivePrefix + ':index' )
-            }] );
-            element.innerHTML = '';
         },
         subscribe : function(element , keypath , binderType, value){
             _DEBUG_.orange( 'SUBSCRIBE for-'+binderType[1], value );
@@ -85,6 +78,12 @@ const Directives = {
             let elementBindings = Bindings.elements.get(element);
             // find the keypath
             let keyPath = elementBindings[ Config.directivePrefix + '-for-' +binderType[1] ];
+            value = Keypath.resolve(Observer._enumerate_(),keypath)
+            console.log('---')
+            console.log('value',value)
+            console.log('iterators',Bindings.iterators)
+            console.log('iterator',Bindings.iterators.get(value))
+            console.log('---')
             let iteratorBinding = Bindings.iterators.get(value).find(x => x.element === element)
             //console.log(keyPath , iteratorBinding );
             let html='';

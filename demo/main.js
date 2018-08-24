@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 22:58:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-22 10:03:22
+* @Last Modified time: 2018-08-23 09:36:15
 */
 
 var  cardHTML;
@@ -141,7 +141,7 @@ function newCard(){
     //destroyCard()
     let i = parseInt( Math.floor( Math.random()*5) );
     console.log('random card id',i)
-    document.getElementById('view').innerHTML = cardHTML;
+    //document.getElementById('view').innerHTML = cardHTML;
     Template.Model('myApp').name = cards[i].name;
     Template.Model('myApp').color = cards[i].color;
     Template.Model('myApp').phone.prefix = cards[i].phone.prefix;

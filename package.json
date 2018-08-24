@@ -11,6 +11,6 @@
     },
     "dependencies": {
         "deep-observer": "^1.1.7",
-        "keypath-resolve": "^2.1.5"
+        "keypath-resolve": "^2.1.6"
     }
 }

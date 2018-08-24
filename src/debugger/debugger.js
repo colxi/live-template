@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 12:50:51
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-21 13:01:25
+* @Last Modified time: 2018-08-23 20:23:02
 */
 import { Bindings } from './../core-bindings.js';
 let currentTab ='placeholders';
@@ -139,6 +139,27 @@ const Debug = {
                 h +='       <td>';
                 Object.keys(v).forEach(b=>{
                     h += '     <span>on-'+b+'</span>';
+                })
+                h +='       </td>';
+                h +='   </tr>';
+            });
+            h += '  </table>';
+            h +='</div>';
+            debugComponent.getElementById('ltd-tab-viewport').innerHTML = h;
+        },
+        iterators: function(){
+            console.log(Bindings.iterators)
+            return;
+            // render Element bindings in a table
+            let h='';
+            h += '<div id="ltd-tab-events">';
+            h += '  <table>';
+            Bindings.iterators.forEach( (v,e)=>{
+                h +='   <tr>';
+                h +='       <td>'+'elementNode'+'</td>';
+                h +='       <td>';
+                v.forEach(b=>{
+                    h += '     <span>'+b.keypath+'</span>';
                 })
                 h +='       </td>';
                 h +='   </tr>';
