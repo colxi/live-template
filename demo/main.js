@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 22:58:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-23 09:36:15
+* @Last Modified time: 2018-08-23 22:58:36
 */
 
 var  cardHTML;
@@ -168,6 +168,9 @@ window.onload = ()=>{
         deleteAddress : function(e){
             let index = e.target.dataset.index
             myApp.address.splice(index,1)
+        },
+        addAddress: function(){
+            myApp.address.push({street:'test',num:88})
         }
     });
 };

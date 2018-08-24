@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-16 00:57:13
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-20 22:01:48
+* @Last Modified time: 2018-08-23 23:24:42
 */
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
@@ -12,7 +12,7 @@ import { Util } from './core-util.js';
 
 
 const ObserverCallback = function( changes ){
-    console.log( 'MutationObserverCallback(): Event: ', changes.action ,  changes.keyPath )
+    console.log( 'MutationObserverCallback(): Event: ', changes )
     switch(changes.action){
         case 'add':
         case 'update': {

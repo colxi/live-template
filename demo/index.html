@@ -7,6 +7,7 @@
 </head>
 <body>
     <div id="view" style="padding:50px;">
+       <!--
         Name : <input type="text" pg-value="myApp.name"> <span pg-if="myApp.name">Ok!</span> <br>
         Color : <input type="text" pg-value="myApp.color"> <span pg-if="myApp.color.length">Ok!</span> <br>
         <input type="button" pg-on-click="myApp.alert" value="Say hi {myApp.name}"> <br>
@@ -15,9 +16,11 @@
         Cellphone : {myApp.phone.prefix} {myApp.phone.number} <br>
         Color : <span style="color:{myApp.color}">{myApp.color}</span> <br>
         Address:
+    -->
+        <input type="button"  pg-on-click="myApp.addAddress" value="Add">
         <div pg-for-address="myApp.address" pg:index="index" style='padding:10px'>
             <div>
-                Street {address.street}, {address.num}
+                Street {address.street}
                 <input type="button" data-index="{index}" pg-on-click="myApp.deleteAddress" value="Delete">
             </div>
         </div>

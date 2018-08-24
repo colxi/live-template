@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-23 20:21:14
+* @Last Modified time: 2018-08-23 22:55:02
 */
 
 /* global _DEBUG_ */
@@ -50,7 +50,7 @@ const Bindings = {
         */
     },
     events : new Map(),
-    iterators : new Map(),
+    iterators : {},
     elements : new Map(),
     /*
         elementReference : {
@@ -69,6 +69,9 @@ const Bindings = {
 
    // must be in core-subscribe.js
     render( placeholder , context ){
+        //if(typeof context==='undefined')alert()
+        console.log('render(): ', placeholder,context);
+
         // if placeholder it's been previously Binded to any element(s)
         if( Bindings.placeholders.hasOwnProperty(placeholder) ){
             // iterate each binded element to the placeholder...
@@ -93,7 +96,6 @@ const Bindings = {
                             const directiveArgs = parts.slice(1);
                             // check if cintext ===undefined before resolvj g
                             const value = Keypath.resolve( Observer._enumerate_(), placeholder );
-                            console.log('yyyyyyyyyyyyyyyyyy',placeholder, value)
                             if(Directives[directiveName].hasOwnProperty('subscribe')){
                                 Directives[directiveName].subscribe(element, placeholder, directiveArgs, value );
                             }
@@ -109,26 +111,28 @@ const Bindings = {
                     element.textContent = Placeholder.populateString( Bindings.elements.get(element) ) ;
                 }
 
-                const model = Keypath.resolveContext( Observer._enumerate_(), placeholder );
-
-/*
-
-                // if model is an array... check if it has an iterator binder
-                if( Array.isArray(model.context) ){
-                    //if( model.property === 'length')model.context.length = value
-                    if(Bindings.iterators.has( model.context ) ){
-                        let elements = Template._Bindings.iterators.get( model.context );
-                    console.log('..................',Bindings.iterators, elements)
-                        // todo: can be linked t many iterators! iterate iterators
-                        // .meanwhile.only the fisrt one i=0
-                        let i = 0;
-                        //console.log(elements);
-                        Directives.for.subscribe(elements[i].element, placeholder, 'for', model.context[model.property])
-                    }else console.log('is member of an array but has no iteration Directive');
-                }
-                */
-
             });
+        }
+
+        const model = Keypath.resolveContext( Observer._enumerate_(), placeholder );
+
+        // if model is an array... check if it has an iterator binder
+        if( Array.isArray(model.context) ){
+
+            let c = placeholder.split('.');
+            let prop = c.splice(-1);
+            c= c.join('.');
+
+            //if( model.property === 'length')model.context.length = value
+            if(Bindings.iterators.hasOwnProperty( c) && prop[0]==='length'){
+                //let elements = Template._Bindings.iterators.get( model.context );
+                console.log('..................')
+                // todo: can be linked t many iterators! iterate iterators
+                // .meanwhile.only the fisrt one i=0
+                let i = Bindings.iterators[ c ]
+                //console.log(elements);
+                Directives.for.subscribe(i.element, c, ['for'])
+            }else console.log('is member of an array but has no iteration Directive');
         }
     }
 };

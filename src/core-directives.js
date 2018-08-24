@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-23 20:37:18
+* @Last Modified time: 2018-08-24 10:07:48
 */
 
 import { Config } from './core-config.js';
@@ -57,16 +57,15 @@ const Directives = {
     for : {
         block : true,
         bind : function(element, keypath , binderType){
-            console.log('binding FOR for-'+binderType[1] );
+            console.log('binding for-'+binderType[1] );
 
-            if(  Keypath.exist(Observer._enumerate_(), keypath) ){
-                let value= Keypath.resolve(Observer._enumerate_(),keypath);
-                Bindings.iterators.set( value, [{
+            if( Keypath.exist(Observer._enumerate_(), keypath) ){
+                Bindings.iterators[keypath] = {
                     element:element,
-                    binderType:binderType,
+                    token:binderType[1],
                     html:element.innerHTML,
                     index:element.getAttribute( Config.directivePrefix + ':index' )
-                }] );
+                };
                 element.innerHTML = '';
             }else throw new Error('directives.for(): model does not exist!!! '+placeholder)
 
@@ -75,16 +74,12 @@ const Directives = {
             _DEBUG_.orange( 'SUBSCRIBE for-'+binderType[1], value );
             element.innerHTML='';
             // recover the element binding
-            let elementBindings = Bindings.elements.get(element);
+            //let elementBindings = Bindings.elements.get(element);
             // find the keypath
-            let keyPath = elementBindings[ Config.directivePrefix + '-for-' +binderType[1] ];
+            //let keyPath = elementBindings[ Config.directivePrefix + '-for-' +binderType[1] ];
             value = Keypath.resolve(Observer._enumerate_(),keypath)
-            console.log('---')
-            console.log('value',value)
-            console.log('iterators',Bindings.iterators)
-            console.log('iterator',Bindings.iterators.get(value))
-            console.log('---')
-            let iteratorBinding = Bindings.iterators.get(value).find(x => x.element === element)
+
+            let iteratorBinding = Bindings.iterators[keypath]
             //console.log(keyPath , iteratorBinding );
             let html='';
             console.warn('item length', value.length)
@@ -95,7 +90,7 @@ const Directives = {
                     let search = new RegExp( Config._replacePlaceholdersExpString.replace('__PLACEHOLDER__', iteratorBinding.index) ,'g');
                     tmp = tmp.replace( search ,i );
                 }
-                html += tmp.replace(binderType[1], keyPath + '.' + i);
+                html += tmp.replace(iteratorBinding.token, keypath + '.' + i);
             }
             console.log(html)
             element.innerHTML= html;

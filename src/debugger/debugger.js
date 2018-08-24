@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 12:50:51
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-23 20:23:02
+* @Last Modified time: 2018-08-24 10:08:43
 */
 import { Bindings } from './../core-bindings.js';
 let currentTab ='placeholders';
@@ -60,9 +60,13 @@ const Debug = {
 
     },
 
-    updateDebugerUI: function(){ Debug.loadTab(currentTab) },
+    updateDebugerUI: function(){
+        Debug.loadTab(currentTab)
+    },
 
     loadTab: function(t){
+                return
+
         t = t || currentTab;
         currentTab = t;
         let menu = debugComponent.querySelectorAll('.ltd-menu')[0];
