@@ -2,14 +2,14 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-24 10:07:48
+* @Last Modified time: 2018-08-28 22:55:17
 */
 
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
 import { Bind } from './core-bind.js';
-import { Unbind } from './core-unbind.js';
-import '../node_modules/keypath-resolve/src/keypath-resolve.js';
+import { Keypath } from './core-keypath.js';
+import { Util } from './core-util.js';
 
 /*
 * @Author: colxi
@@ -20,17 +20,21 @@ import '../node_modules/keypath-resolve/src/keypath-resolve.js';
 const Directives = {
     value : {
         bind : function(element, keypath , binderType ){
+            _DEBUG_.directive('Directives.value.bind() : Bindng '+ keypath +' ->', {element});
             Bind.event( element, 'input', e=>this.publish(element, keypath , binderType, e.target.value) );
         },
         subscribe : function(element , keypath , binderType, value){
             // change in object must be reflected in DOM
+            _DEBUG_.directive('Directives.value.subscribe() : Subscribe '+ keypath +' -> "'+value+'" to ', {element});
             element.value = value || '' ;
         },
         publish : function(element, keypath , binderType, value){
             // change in DOM must be setted to _MODELS_ Object
-            let model = Keypath.resolveContext( Observer._enumerate_() , keypath);
-            if(model) model.context[ model['property'] ] = value;
-            else console.log('model or property does mot exist');
+            _DEBUG_.directive('Directives.value.pusblish() : Publish '+ value +' -> "'+keypath+'" from ', {element});
+            if( Keypath.exist( keypath) ){
+                let model = Keypath.resolveContext( keypath);
+                model.context[ model.property ] = value;
+            }else console.log('Keypath cant be resolved (model doesnt exist)');
         }
     },
     on : {
@@ -38,7 +42,7 @@ const Directives = {
             Bind.event( element, binderType[1], e=> this.publish(element, keypath, binderType, e) );
         },
         publish : function(element , keypath , binderType, value){
-            Keypath.resolve(Observer._enumerate_(), keypath)(value)
+            Keypath.resolve( keypath)(value)
         }
     },
     if : {
@@ -56,44 +60,142 @@ const Directives = {
     },
     for : {
         block : true,
+        unbind : function(element, keypath){
+            while(element.firstChild){ element.firstChild.remove() };
+            delete Bindings.iterators[keypath];
+        },
         bind : function(element, keypath , binderType){
-            console.log('binding for-'+binderType[1] );
+            _DEBUG_.directive('Directives.for.bind() : Bindng Iterator '+ keypath +' ->', {element});
 
-            if( Keypath.exist(Observer._enumerate_(), keypath) ){
+            if( Keypath.exist( keypath) ){
                 Bindings.iterators[keypath] = {
                     element:element,
+                    elementContent:element.firstElementChild.cloneNode(true),
+                    state : [],
                     token:binderType[1],
-                    html:element.innerHTML,
-                    index:element.getAttribute( Config.directivePrefix + ':index' )
+                    //html:element.innerHTML,
+                    index:element.getAttribute( Config.directivePrefix + ':index' ),
+                    initiated :false
                 };
-                element.innerHTML = '';
-            }else throw new Error('directives.for(): model does not exist!!! '+placeholder)
+                while(element.firstChild){ element.firstChild.remove() };
+
+                /*
+                Directives.for.subscribe(element, keypath , binderType, Keypath.resolve(keypath));
+
+                */
+
+            }else throw new Error('Directives.for.bind(): model does not exist!!! '+keypath);
+
 
         },
         subscribe : function(element , keypath , binderType, value){
-            _DEBUG_.orange( 'SUBSCRIBE for-'+binderType[1], value );
-            element.innerHTML='';
+            _DEBUG_.directive('Directives.for.subscribe() : '+ keypath , {element} );
             // recover the element binding
             //let elementBindings = Bindings.elements.get(element);
             // find the keypath
             //let keyPath = elementBindings[ Config.directivePrefix + '-for-' +binderType[1] ];
-            value = Keypath.resolve(Observer._enumerate_(),keypath)
 
-            let iteratorBinding = Bindings.iterators[keypath]
-            //console.log(keyPath , iteratorBinding );
+
+            let iteratorBinding = Bindings.iterators[keypath];
+            element = iteratorBinding.element;
+
+            let state = iteratorBinding.state;
+            iteratorBinding.state = value.slice(0);
+
+            // make a list of all modifed keys
+            let changes= new Set();
+            for(let i =0; i<value.length;i++) if( value[i] !== state[i] ) changes.add(i)
+
+
+
+            if(state.length > value.length ){
+                let dif = state.length - value.length ;
+                for(let i=0; i<dif;i ++) element.lastElementChild.remove();
+            }
+
+            let children = Array.from(element.children)
+
+            for( let i=0; i<value.length; i++ ){
+                if( !changes.has(i) ) continue;
+
+                let content = iteratorBinding.elementContent.cloneNode(true);
+                prepare( iteratorBinding.index, i, content )
+
+                if( !children[ i ] ) element.appendChild( content  );
+                else{
+                    children[i].parentNode.insertBefore(content, children[i].nextSibling);
+                    children[ i ].remove();
+                }
+            }
+
+            if( !iteratorBinding.initiated){
+                let children = Array.from(element.children);
+                for(let i=0; i<children.length; i++){
+                    console.warn( children[i] );
+                    Bind.element( children[i] );
+                }
+                iteratorBinding.initiated= true;
+            }
+
+
+
+            function prepare(indexToken, index, element){
+                let indexRegexp = new RegExp( Config._replacePlaceholdersExpString.replace('__PLACEHOLDER__', indexToken) ,'g');
+                let attr = Array.from(element.attributes);
+                // attributes
+                for(let a=0; a<attr.length; a++){
+                    let attrValue = attr[a].value;
+                    if(typeof iteratorBinding.index !== 'undefined'){
+                        attrValue = attrValue.replace( indexRegexp, index );
+                    }
+                    attrValue = attrValue.replace(iteratorBinding.token, keypath + '.' + index);
+                    attr[a].value = attrValue;
+                }
+                // txetnodes
+                let textNodes = Util.getElementTextNodes(element);
+                for(let a=0; a<textNodes.length; a++){
+                    let texNode =  textNodes[a];
+                    let textValue = texNode.textContent;
+                    if(typeof iteratorBinding.index !== 'undefined'){
+                        textValue = textValue.replace( indexRegexp, index );
+                    }
+                    textValue = textValue.replace(iteratorBinding.token, keypath + '.' + index);
+                    texNode.textContent = textValue;
+                }
+                // children nodes
+                let children = Array.from(element.children);
+                for(let a=0; a<children.length; a++) prepare( indexToken, index, children[a] );
+            }
+
+
+            /*
             let html='';
-            console.warn('item length', value.length)
-            for( let i=0; i< value.length; i++){
+            element.innerHTML= '';
+
+            if(changes.length === 1 && changes[0] === value.length-1){
+                let i= changes[0]
                 let tmp = iteratorBinding.html;
                 if(typeof iteratorBinding.index !== 'undefined'){
-                    console.log(Config._replacePlaceholdersExpString)
                     let search = new RegExp( Config._replacePlaceholdersExpString.replace('__PLACEHOLDER__', iteratorBinding.index) ,'g');
                     tmp = tmp.replace( search ,i );
                 }
                 html += tmp.replace(iteratorBinding.token, keypath + '.' + i);
-            }
-            console.log(html)
-            element.innerHTML= html;
+                //element.innerHTML += html;
+                element.appendChild( document.createElement('div') ).innerHTML = html;
+            }else{
+                // element.innerHTML='';
+                for( let i=0; i< value.length; i++){
+                    let tmp = iteratorBinding.html;
+                    if(typeof iteratorBinding.index !== 'undefined'){
+                        let search = new RegExp( Config._replacePlaceholdersExpString.replace('__PLACEHOLDER__', iteratorBinding.index) ,'g');
+                        tmp = tmp.replace( search ,i );
+                    }
+                    html += tmp.replace(iteratorBinding.token, keypath + '.' + i);
+                }
+                element.innerHTML= html;
+            // end elseif
+            // }
+            */
         },
     },
     /*

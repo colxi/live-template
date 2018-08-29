@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-21 15:15:27
+* @Last Modified time: 2018-08-28 21:29:20
 */
 
 /* global _DEBUG_ */
@@ -41,7 +41,12 @@ Unbind.element = function( element ){
     }
 
 
-    _DEBUG_.red('Unbind.element() : Unbinding ELEMENT :',  element );
+    _DEBUG_.red('Unbind.element() : Unbinding ELEMENT :',  {element} );
+
+    // Prepare array whith children elements, before any other action,
+    // (eg .Directive.unbind) modifies the children tree
+    // ( if is a textNode, a empty array will be generated )
+    const childrenElements = Array.from( element.children  || [] );
 
 
     // *************************************************************************
@@ -56,30 +61,29 @@ Unbind.element = function( element ){
         for( let i=0 ; i < count; i++ ){
             // get current attribute
             const attribute = element.attributes[i];
-            //nif current attribute appears to be a directive...
-            if( Directive.isDirectiveName( attribute.name ) ){
-                // and Directive actually exists...
-                if( Directive.exist( attribute.name ) ){
-                    // if Directive attribute value is quoted, it behaves as a
-                    // constant, and no effective binding was performed, for that
-                    // reasons can be skipped
-                    if(Util.isStringQuoted( attribute.value ) ) continue;
-                    // retrieve the directive name and arguments parts, from
-                    // the attribute name
-                    const parts = attribute.name.split('-');
-                    const directiveName = parts[1];
-                    const directiveArgs = parts.slice(1);
-                    // call the Directive unbindng method
-                    if( Directives[directiveName].hasOwnProperty('unbind') ){
-                        Directives[ directiveName ].unbind( element , attribute.value , directiveArgs );
-                    }
-                    // If Directive registered events in the element, retrieve
-                    // them, and iterate to unregister
-                    if( Bindings.events.has( element ) ){
-                        const events = Bindings.events.get( element );
-                        Object.keys(events).forEach( e => Unbind.event(element,e) );
-                    }
-                }else _DEBUG_.red('Unbind.Element(): Unregistered Directive attribute found('+attribute.name+'). Ignored.' );
+            // if current attribute is not an directive or is an undwclared
+            // directive, contniue, to next attribute...
+            if( !Directive.isDirectiveName(attribute.name) || !Directive.exist(attribute.name) ) continue;
+            // if Directive attribute value is quoted, it behaves as a
+            // constant, and no effective binding was performed, for that
+            // reasons can be skipped
+            if(Util.isStringQuoted( attribute.value ) ) continue;
+
+            // retrieve the directive name and arguments parts, from
+            // the attribute name
+            const parts = attribute.name.split('-');
+            const directiveName = parts[1];
+            const directiveArgs = parts.slice(1);
+            // call the Directive unbindng method
+
+            if( typeof Directives[directiveName].unbind  === 'function' ){
+                Directives[ directiveName ].unbind( element , attribute.value , directiveArgs );
+            }
+            // If Directive registered events in the element, retrieve
+            // them, and iterate to unregister
+            if( Bindings.events.has( element ) ){
+                const events = Bindings.events.get( element );
+                Object.keys(events).forEach( e => Unbind.event(element,e) );
             }
         }
     }
@@ -92,16 +96,11 @@ Unbind.element = function( element ){
     // prepare collection of items to unbind. if provided element is a TextNode,
     // only add itself to the collection, but if its an element node, add
     // itself and also the direct child textnodes.
-    // If is an element node, prepare also a collction of direct childdren
-    // element nodes, for deep recursive unbinding
     let nodes = [];
-    let childrenElements = [];
     if( element.nodeType === Node.ELEMENT_NODE ){
         // retrieve all the  element textnodes
         nodes = Util.getElementTextNodes( element );
         nodes.push( element );
-        // prepare array whith children elements
-        childrenElements = Array.from( element.children );
     }else nodes.push( element );
 
 

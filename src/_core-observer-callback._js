@@ -2,15 +2,11 @@
 * @Author: colxi
 * @Date:   2018-07-16 00:57:13
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-23 23:24:42
+* @Last Modified time: 2018-08-24 11:01:19
 */
-import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
-import { Placeholder } from './core-placeholder.js';
-import { Directives } from './core-directives.js';
-import { Util } from './core-util.js';
 
-
+/*
 const ObserverCallback = function( changes ){
     console.log( 'MutationObserverCallback(): Event: ', changes )
     switch(changes.action){

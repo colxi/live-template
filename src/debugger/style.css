@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 19:51:28
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-21 13:28:29
+* @Last Modified time: 2018-08-24 11:36:09
 */
 
 :host{
@@ -22,7 +22,7 @@
 
 
 :host{
-    position: absolute;
+    position: fixed;
     bottom: 0pc;
     left: 0pc;
     width: 100%;

@@ -2,15 +2,14 @@
 * @Author: colxi
 * @Date:   2018-07-17 15:55:37
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-20 14:30:23
+* @Last Modified time: 2018-08-24 12:43:21
 */
 
+import { Keypath } from './core-keypath.js';
 import { Config } from './core-config.js';
 import { Bindings } from './core-bindings.js';
 import { Util } from './core-util.js';
 import { Directive } from './core-directives.js';
-import '../node_modules/deep-observer/src/deep-observer.js';
-import '../node_modules/keypath-resolve/src/keypath-resolve.js';
 
 
 const Placeholder = {
@@ -94,7 +93,7 @@ const Placeholder = {
         placeholders.forEach( placeholder=>{
             let value;
             try{
-                let model = Keypath.resolveContext( Observer._enumerate_(),  placeholder );
+                let model = Keypath.resolveContext( placeholder );
                 value = model.context[model.property];
             }catch(e){
                 value = '';

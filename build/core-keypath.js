@@ -1,0 +1,1 @@
+import"./lib/keypath-resolve.js";const Keypath=window.Keypath;delete window.Keypath;export{Keypath};

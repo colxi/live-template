@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <script src="../src/live-template.js" type="module"></script>
+    <script src="./main.js"></script>
+</head>
+<body>
+    <div id="view" style="padding:50px;">
+        Name : {myApp.name}   <input type="button" pg-on-click="myApp.alert" value="Say hi {myApp.name}"> <br>
+        Cellphone : {myApp.phone.prefix} {myApp.phone.number} <br>
+        <div>
+            Color : <input type="text" pg-value="myApp.color">
+            <span style="background:{myApp.color}; width:12px; height:12px;border:1px solid black; display:inline-block"></span>
+        </div>
+        <div>
+            Add address:
+            <input type="text" pg-value="myApp.newAddress">
+            <input type="button" pg-on-click="myApp.addAddress" value="Add" pg-if="myApp.newAddress">
+        </div>
+        <div pg-for-address="myApp.address" pg:index="index" style='padding:10px' class='iterator'>
+            <div class="iterator-child">
+                <span>{ index }</span>
+                Street {address.street}
+                <input type="button" data-index="{index}" pg-on-click="myApp.deleteAddress" value="Delete">
+            </div>
+        </div>
+    </div>
+    <input type="button" onclick="newCard()" value="Load Card">
+    <input type="button" onclick="destroyCard()" value="Unload Card">
+</body>
+
+</html>

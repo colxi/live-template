@@ -2,9 +2,10 @@
 * @Author: colxi
 * @Date:   2018-08-14 12:50:51
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-24 10:08:43
+* @Last Modified time: 2018-08-25 15:15:17
 */
 import { Bindings } from './../core-bindings.js';
+
 let currentTab ='placeholders';
 
 const debugerUI =`
@@ -22,7 +23,7 @@ const debugerUI =`
         <span onclick="Debug.loadTab('elements')" id="ltd-menu-elements">Elements</span>
         <span onclick="Debug.loadTab('events')" id="ltd-menu-events">Events</span>
         <span onclick="Debug.loadTab('iterators')" id="ltd-menu-iterators">Iterators</span>
-        <span onclick="Debug.loadTab('models')" id="ltd-menu-models">Models</span>
+        <span onclick="Debug.loadTab('log')" id="ltd-menu-log">Log</span>
     </div>
     <div id ="ltd-tab-viewport"></div>
 `;
@@ -65,7 +66,6 @@ const Debug = {
     },
 
     loadTab: function(t){
-                return
 
         t = t || currentTab;
         currentTab = t;
@@ -172,6 +172,16 @@ const Debug = {
             h +='</div>';
             debugComponent.getElementById('ltd-tab-viewport').innerHTML = h;
         },
+        log: function(){
+            let h='';
+            h += '<div id="ltd-tab-events">';
+            h +=    '<input type="checkbox" id="log-bindings" checked><label for="log-bindings">Bindings</label><br>';
+            h +=    '<input type="checkbox" id="log-unbindings" checked><label for="log-unbindings">Unbindings</label><br>';
+            h +=    '<input type="checkbox" id="log-directives" checked><label for="log-directives">Directives</label><br>';
+            h +=    '<input type="checkbox" id="log-subsriptions" checked><label for="log-subsriptions">Subsriptions</label><br>';
+            h += '</div>';
+            debugComponent.getElementById('ltd-tab-viewport').innerHTML = h;
+        }
     }
 
 };

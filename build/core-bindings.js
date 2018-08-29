@@ -1,0 +1,1 @@
+const Bindings={templates:new Map,placeholders:{},events:new Map,iterators:{},elements:new Map};export{Bindings};

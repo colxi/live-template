@@ -9,8 +9,10 @@
         "type": "git",
         "url": "https://github.com/colxi/"
     },
-    "dependencies": {
-        "deep-observer": "^1.1.7",
-        "keypath-resolve": "^2.1.6"
+    "dependencies": {},
+    "devDependencies": {
+        "grunt": "^1.0.3",
+        "grunt-contrib-uglify-es": "^3.3.0",
+        "grunt-contrib-watch": "^1.1.0"
     }
 }

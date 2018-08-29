@@ -2,10 +2,13 @@
 * @Author: colxi
 * @Date:   2018-08-14 22:58:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-23 22:58:36
+* @Last Modified time: 2018-08-28 22:57:33
 */
 
+/* global Template */
+
 var  cardHTML;
+var  myApp;
 
 var cards = [
     {
@@ -140,7 +143,7 @@ var cards = [
 function newCard(){
     //destroyCard()
     let i = parseInt( Math.floor( Math.random()*5) );
-    console.log('random card id',i)
+    console.log('random card id',i);
     //document.getElementById('view').innerHTML = cardHTML;
     Template.Model('myApp').name = cards[i].name;
     Template.Model('myApp').color = cards[i].color;
@@ -153,7 +156,11 @@ function destroyCard(){
     document.getElementById('view').innerHTML = '';
 }
 
+
+
 window.onload = ()=>{
+    Template.Config.debugMode = false
+
     cardHTML = document.getElementById('view').innerHTML;
     Debug.showDebuger();
     myApp = new Template.Model('myApp', {
@@ -164,13 +171,14 @@ window.onload = ()=>{
             number : ''
         },
         address:[],
+        newAddress : '',
         alert : function(){ alert('hi '+ myApp.name) },
         deleteAddress : function(e){
-            let index = e.target.dataset.index
-            myApp.address.splice(index,1)
+            let index = e.target.dataset.index;
+            myApp.address.splice(index,1);
         },
         addAddress: function(){
-            myApp.address.push({street:'test',num:88})
+            myApp.address.push({street:myApp.newAddress,num:88});
         }
     });
 };

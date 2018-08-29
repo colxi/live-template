@@ -2,21 +2,24 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-20 23:32:30
+* @Last Modified time: 2018-08-24 22:27:36
 */
 /* global _DEBUG_ */
 
+import './log.js';
 
-import './src/log.js';
-import './node_modules/deep-observer/src/deep-observer.js';
-import { Config , ConfigInterface } from './src/core-config.js';
-import { Bind } from './src/core-bind.js';
-import { Unbind } from './src/core-unbind.js';
-import { Util } from './src/core-util.js';
-import { Bindings } from './src/core-bindings.js';
-import { ObserverCallback } from './src/core-observer-callback.js';
-import { Debug } from './src/debugger/debugger.js';
+import { Config , ConfigInterface } from './core-config.js';
+import { Observer } from './core-observer.js';
+import { Keypath } from './core-keypath.js';
+import { Bind } from './core-bind.js';
+import { Unbind } from './core-unbind.js';
+import { Util } from './core-util.js';
+import { Bindings } from './core-bindings.js';
+import { Subscribe } from './core-subscribe.js';
+import { Debug } from './debugger/debugger.js';
 
+
+Keypath.defaultContext( Observer._enumerate_() );
 
 let _DOM_OBSERVER_ = new MutationObserver( mutationsList => {
     for(let mutation of mutationsList){
@@ -132,12 +135,13 @@ Template.destroy = function(element ){
     return true;
 };
 
+
 Template.Model = function( modelName, content ){
     if(typeof content === 'undefined'){
         return Observer(modelName);
     }else{
         if( !(this instanceof Template.Model) ) throw new Error("Model Constructor must be called using 'new'.");
-        return new Observer( content , ObserverCallback , {
+        return new Observer( content , Subscribe.dom , {
             id: modelName ,
             observeConstruction: true,
             ignoreSameValueReassign : false

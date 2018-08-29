@@ -1,0 +1,1 @@
+import"./lib/deep-observer.js";const Observer=window.Observer;delete window.Observer;export{Observer};
