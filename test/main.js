@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 22:58:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-28 22:57:33
+* @Last Modified time: 2018-08-29 04:58:56
 */
 
 /* global Template */
@@ -21,23 +21,28 @@ var cards = [
         address :[
             {
                 street:'pi i margall',
-                num: 43
+                num: 43,
+                public:true
             },
             {
                 street:'pujades',
-                num: 222
+                num: 222,
+                public:true
             },
             {
                 street:'fraternitat',
-                num: 18
+                num: 18,
+                public:false
             },
             {
                 street:'sant bertran',
-                num: 33
+                num: 33,
+                public:false
             },
             {
                 street:'pedreres',
-                num: 14
+                num: 14,
+                public:true
             }
         ]
     },

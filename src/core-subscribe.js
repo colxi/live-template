@@ -2,12 +2,13 @@
 * @Author: colxi
 * @Date:   2018-08-24 10:58:42
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-28 22:54:31
+* @Last Modified time: 2018-08-31 23:59:51
 */
 
 import { Keypath } from './core-keypath.js';
 import { Bindings } from './core-bindings.js';
-import { Directive, Directives } from './core-directives.js';
+import { Directive } from './core-directive.js';
+import { Directives } from './core-directives.js';
 import { Placeholder } from './core-placeholder.js';
 
 // fil should be core-dom
@@ -37,15 +38,14 @@ Subscribe.model= function( placeholder , context ){
                 for(let attribute in bindedAttributes){
                     if( !bindedAttributes.hasOwnProperty(attribute) ) continue;
                     //
+                    // if is a Directive...
                     if( Directive.isDirectiveName( attribute ) && Directive.exist( attribute )){
-                        // is a Directive
-                        const parts = attribute.split('-');
-                        const directiveName = parts[1];
-                        const directiveArgs = parts.slice(1);
-                        // check if cintext ===undefined before resolvj g
+                        const directive = Directive.nameUnpack(attribute);
+
+                        // todo :check if context ===undefined before resolving
                         const value = Keypath.resolve( placeholder );
-                        if(Directives[directiveName].hasOwnProperty('subscribe')){
-                            Directives[directiveName].subscribe(element, placeholder, directiveArgs, value );
+                        if(Directives[directive.name].hasOwnProperty('subscribe')){
+                            Directives[directive.name].subscribe(element, placeholder, directive.arguments, value );
                         }
                     }else{
                         // is a regular attribute
@@ -67,17 +67,17 @@ Subscribe.model= function( placeholder , context ){
     // if model is an array... check if it has an iterator binder
     if( Array.isArray(model.context) ){
 
-        let c = placeholder.split('.');
-        let prop = c.splice(-1);
-        c= c.join('.');
+        let keypath = placeholder.split('.');
+        let prop = keypath.splice(-1);
+        keypath= keypath.join('.');
 
-        //if( model.property === 'length')model.context.length = value
-        if(Bindings.iterators.hasOwnProperty( c ) && prop[0]==='length'){
+        // if( model.property === 'length')model.context.length = value
+        if(Bindings.iterators.hasOwnProperty( keypath ) && prop[0]==='length'){
             //let elements = Template._Bindings.iterators.get( model.context );
             // todo: can be linked t many iterators! iterate iterators
             // .meanwhile.only the fisrt one i=0
-            let i = Bindings.iterators[ c ]
-            Directives.for.subscribe(i.element, c, ['for'], model.context )
+
+            Bindings.iterators[ keypath ].forEach( (value,element)=>Directives.for.subscribe(element, keypath, ['for'], model.context ) )
         };
     }
 }

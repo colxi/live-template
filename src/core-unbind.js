@@ -2,14 +2,15 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-28 21:29:20
+* @Last Modified time: 2018-08-31 23:56:05
 */
 
 /* global _DEBUG_ */
 
 import { Debug } from './debugger/debugger.js';
 import { Bindings } from './core-bindings.js';
-import { Directive , Directives } from './core-directives.js';
+import { Directive } from './core-directive.js';
+import { Directives } from './core-directives.js';
 import { Placeholder } from './core-placeholder.js';
 import { Util } from './core-util.js';
 
@@ -71,13 +72,11 @@ Unbind.element = function( element ){
 
             // retrieve the directive name and arguments parts, from
             // the attribute name
-            const parts = attribute.name.split('-');
-            const directiveName = parts[1];
-            const directiveArgs = parts.slice(1);
-            // call the Directive unbindng method
+            const directive = Directive.nameUnpack(attribute.name);
 
-            if( typeof Directives[directiveName].unbind  === 'function' ){
-                Directives[ directiveName ].unbind( element , attribute.value , directiveArgs );
+            // call the Directive unbindng method
+            if( typeof Directives[directive.name].unbind  === 'function' ){
+                Directives[ directive.name ].unbind( element , attribute.value , directive.arguments );
             }
             // If Directive registered events in the element, retrieve
             // them, and iterate to unregister

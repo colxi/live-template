@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-24 11:16:46
+* @Last Modified time: 2018-09-01 00:34:48
 */
 
 /* global _DEBUG_ */
@@ -13,13 +13,7 @@
 //
 //
 
-/**
- * Template._Bindings holds two indexes :
- * - An Array with the PLACEHOLDERS, associating each  placeholder token to
- * each element wich contains it,
- * - A Weak Map for the ELEMENTS, wich stores each the Element original value
- * with the placeholders strings (template tokens)
- */
+
 const Bindings = {
     templates:  new Map(),
     // bindings.templatd should be a weakmap

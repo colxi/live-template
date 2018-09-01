@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-26 13:37:38
+* @Last Modified time: 2018-09-01 00:32:16
 */
 
 /* global _DEBUG_ */
@@ -10,7 +10,8 @@
 
 
 import { Bindings } from './core-bindings.js';
-import { Directive , Directives } from './core-directives.js';
+import { Directive } from './core-directive.js';
+import { Directives } from './core-directives.js';
 import { Placeholder } from './core-placeholder.js';
 import { Subscribe } from './core-subscribe.js';
 import { Util } from './core-util.js';
@@ -188,7 +189,7 @@ const _bind_Attribute = function( element, attribute, value){
 };
 
 const _bind_Placeholder = function( element , placeholder ){
-    _DEBUG_.binding.darker('Binding PLACEHOLDER to element :', placeholder +" ->", element.tagName);
+    _DEBUG_.binding.darker('Binding PLACEHOLDER to element :', placeholder +" ->", element.tagName || 'TEXT_NODE');
 
     // if the tokenName has not been registered previously, generate an empty entry
     if( !Bindings.placeholders.hasOwnProperty(placeholder) ) Bindings.placeholders[placeholder] = [];
@@ -199,15 +200,12 @@ const _bind_Placeholder = function( element , placeholder ){
     return true;
 };
 
-const _bind_Directive = function( element , directive, value){
+const _bind_Directive = function( element , attributeName, value){
 
-    _DEBUG_.binding.darker('Binding DIRECTIVE to element :', directive+'="'+value+'" ->', element.tagName );
+    _DEBUG_.binding.darker('Binding DIRECTIVE to element :', attributeName+'="'+value+'" ->', element.tagName );
 
     // split the directive string in tokens
-    // Eg. 'pg-on-click' => ['pg','on','click']
-    const parts = directive.split('-');
-    const directiveName = parts[1];
-    const directiveArgs = parts.slice(1);
+    const directive = Directive.nameUnpack(attributeName);
 
     // if Directive attribute is quoted, its content behaves as an immutable value
     // (constant), and it's not considered a placeholder, then no Element
@@ -215,29 +213,29 @@ const _bind_Directive = function( element , directive, value){
     // method must be called, to trigger the Directive action.
     if( Util.isStringQuoted( value ) ){
         _DEBUG_.binding.darker('_bind_Directive() : Directive value is a constant. Skipping Binding.');
-        if( Directives[directiveName].hasOwnProperty('subscribe') ){
-            Directives[ directiveName ].subscribe( element, undefined , directiveArgs, Util.unquoteString( value ) );
+        if( Directives[ directive.name ].hasOwnProperty('subscribe') ){
+            Directives[ directive.name ].subscribe( element, undefined , directive.arguments, Util.unquoteString( value ) );
         }
     }else{
         const placeholder = value;
         //  Bind the element to the placeholder (Bindings.placeholder)
         //  and bind the placeholder to the element (Bindings.element)
-        _bind_Placeholder(element, placeholder);
-        _bind_Attribute( element , directive , placeholder);
+        _bind_Placeholder( element, placeholder );
+        _bind_Attribute( element , attributeName , placeholder);
 
         // Execute then <Directive>.bind method
-        if( Directives[directiveName].hasOwnProperty('bind') ){
-            Directives[directiveName].bind(element, placeholder , directiveArgs );
+        if( Directives[directive.name].hasOwnProperty('bind') ){
+            Directives[directive.name].bind(element, placeholder , directive.arguments );
         }
         // Execute then <Directive>.subscribe method. If th placeholder Keypath
         // can't be resolved, call subscribe with an empty value.
-        if( Directives[directiveName].hasOwnProperty('subscribe') ){
+        if( Directives[directive.name].hasOwnProperty('subscribe') ){
             if( Keypath.exist( placeholder ) ){
                 const model = Keypath.resolveContext( placeholder);
-                Directives[directiveName].subscribe( element, placeholder, directiveArgs , model.context[model.property] );
+                Directives[directive.name].subscribe( element, placeholder, directive.arguments , model.context[model.property] );
             }else{
                 _DEBUG_.binding.darker('_bind_Directive() : Model or model property does mot exist. ('+placeholder+')');
-                Directives[directiveName].subscribe( element, placeholder, directiveArgs ,  '');
+                Directives[directive.name].subscribe( element, placeholder, directive.arguments ,  '');
             }
         }
     }
