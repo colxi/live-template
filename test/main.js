@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 22:58:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-29 04:58:56
+* @Last Modified time: 2018-09-03 15:16:25
 */
 
 /* global Template */
@@ -158,7 +158,11 @@ function newCard(){
 }
 
 function destroyCard(){
-    document.getElementById('view').innerHTML = '';
+    Template.Model('myApp').name = '';
+    Template.Model('myApp').color ='';
+    Template.Model('myApp').phone.prefix = '';
+    Template.Model('myApp').phone.number = '';
+    Template.Model('myApp').address = [];
 }
 
 

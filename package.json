@@ -1,7 +1,7 @@
 {
     "name": "live-template",
     "description": "HTML Templating + Automatic Model Data Binding.",
-    "version": "0.0.1",
+    "version": "0.0.6",
     "keywords": [],
     "author": "colxi",
     "license": "MIT",

@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 12:50:51
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-25 15:15:17
+* @Last Modified time: 2018-09-03 16:10:33
 */
 import { Bindings } from './../core-bindings.js';
 
@@ -27,6 +27,7 @@ const debugerUI =`
     </div>
     <div id ="ltd-tab-viewport"></div>
 `;
+
 
 let debuggerContainer        = document.createElement('div');
 debuggerContainer.id         = 'ltd-container';

@@ -1,9 +1,0 @@
-<h1 pg-model="'section2'" >SECTION 2</h1>
-<div>
-    <input type="text" pg-value="section2.name">
-    <input type="text" pg-value="section2.surname">
-    <input type="button" value="Add" pg-on-click="section2.addItem" >
-</div>
-<div pg-for-item="section2.collection" pg:index="index">
-    <div><input type="button" value="Remove" pg-on-click="section2.removeItem" data-index="${index}" >My name is ${item.name} ${item.surname} </div>
-</div>

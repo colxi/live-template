@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-14 13:10:32
+* @Last Modified time: 2018-09-03 15:14:56
 */
 import { Bindings } from './core-bindings.js';
 import { Util } from './core-util.js';
@@ -18,8 +18,8 @@ import { Util } from './core-util.js';
 
 
 const Config = {
-    directivePrefix         : 'pg',
-    placeholderDelimitiers  : ['{' , '}'],
+    directivePrefix         : 'lt',
+    placeholderDelimitiers  : ['{{' , '}}'],
     modelsNamesExtension    : '.js',
     viewsNamesExtension     : '.html',
     modelsPath              : './models/',
