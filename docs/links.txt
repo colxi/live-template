@@ -1,0 +1,5 @@
+framework sizes comparsion
+https://gist.github.com/Restuta/cda69e50a853aa64912d
+
+MVVM
+https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93viewmodel

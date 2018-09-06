@@ -8,6 +8,11 @@ Tiny ( less than 10Kb gzipped ) Reactive Templating Engine for JS (ES6)
 - MVVM capabilities
 - **No dependencies**
 
+Soon :
+- Expression Evaluation
+- JSX compatibility
+- Components based views
+- Optimized performance (using Vitual Dom)
 
 ## Usage example
 
@@ -31,10 +36,24 @@ Model:
     Template.create('#myView')
 ```
 
-## Reactive
-The two way data binding  automatically performed in the models,when declared, allows automatic updates in the DOM in real time.
+## API
 
-Any change in the DOM, will be reflected also, to the model(s), when necessary. 
+### Template.Model()
+```javascript
+    new Template.Model(modelName, modelObject)
+```
+Constructor : Creates a new (Observable) Model based on the `modelObject` , with the `modelName`as the unique Identifier. The Model Constructor requires the usage of `new`.
+```javascript
+    Template.Model(modelName)
+```
+Getter: Returns the model that maches the `modelName`argument
+### Template.create()
+
+```javascript
+    Template.create(DOMElement)
+```
+Binds the contents of the `DOMElement`(included), and generates a reactive viaualization of its contents, generating a live View.
+
 
 ## Available Directives
 
@@ -56,7 +75,7 @@ Performs iteration to the provided model iterable, and renders the contents of t
 Shows/hides the element if the model prooerty evaluates to true/false
 ###  lt-on-*
 ```html
-    <div lt-on-click="myModel.sayHi()" > 
+    <div lt-on-click="myModel.sayHi" > 
         Click me to trigger an action!
     </div>
 ```
@@ -66,4 +85,11 @@ Adds an event listener to the element with the provided callback.
 ```html
     <input type="text" lt-value="myModel.name">
 ```
-Performs a (two way) data binding with the provded model prooerty
+Performs a (two way) data binding with the provded model property
+
+
+## Reactive
+The two way data binding  automatically performed in the models,when declared, allows automatic updates in the DOM in real time.
+
+Any change in the DOM, will be reflected also, to the model(s), when necessary. 
+

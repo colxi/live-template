@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-02 15:46:36
+* @Last Modified time: 2018-09-06 13:26:59
 */
 /* global _DEBUG_ */
 
@@ -140,6 +140,7 @@ Template.destroy = function(element ){
 
 
 Template.Model = function( modelName, content ){
+    if( typeof modelName!== 'string' || !modelName.length ) throw new Error('Template.Model requires a name argument');
     if(typeof content === 'undefined'){
         return Observer(modelName);
     }else{
