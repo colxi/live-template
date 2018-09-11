@@ -2,11 +2,11 @@
 * @Author: colxi
 * @Date:   2018-08-14 12:50:51
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-03 16:10:33
+* @Last Modified time: 2018-09-07 23:47:58
 */
 import { Bindings } from './../core-bindings.js';
 
-let currentTab ='placeholders';
+let currentTab ='expressions';
 
 const debugerUI =`
     <link rel="stylesheet" href="../src/debugger/style.css" id="ltd-styles" />
@@ -19,11 +19,14 @@ const debugerUI =`
         -->
         <span onclick="Template.create('#view')" title="Create Template" class="ltd-menu-icon ltd-menu-bind">&#8766;</span>
         <span onclick="Template.destroy('#view')" title="Destroy Template" class="ltd-menu-icon ltd-menu-unbind">&#8660;</span>
-        <span onclick="Debug.loadTab('placeholders')" id="ltd-menu-placeholders" active>Placeholders</span>
+        <span onclick="Debug.loadTab('expressions')" id="ltd-menu-expressions" active>Expressions</span>
+        <span onclick="Debug.loadTab('placeholders')" id="ltd-menu-placeholders" >Placeholders</span>
         <span onclick="Debug.loadTab('elements')" id="ltd-menu-elements">Elements</span>
+        <!--
         <span onclick="Debug.loadTab('events')" id="ltd-menu-events">Events</span>
         <span onclick="Debug.loadTab('iterators')" id="ltd-menu-iterators">Iterators</span>
         <span onclick="Debug.loadTab('log')" id="ltd-menu-log">Log</span>
+        -->
     </div>
     <div id ="ltd-tab-viewport"></div>
 `;
@@ -122,7 +125,29 @@ const Debug = {
                 let hh = '';
                 Bindings.placeholders[i].forEach(b=>{
                     hh += '<span>';
-                    hh += (b.nodeType ===  Node.TEXT_NODE) ?'textNode':'elementNode';
+                    hh += b;
+                    hh += '</span>';
+                })
+                h += '       <td>'+hh+'</td>';
+                h += '   </tr>';
+            };
+            h +='   </table>';
+            h +='</div>';
+            debugComponent.getElementById('ltd-tab-viewport').innerHTML = h;
+        },
+        expressions: function(){
+            // render Placeholder Bindings in a table
+            let h='';
+            h += '<div id="ltd-tab-expressions">';
+            h += '   <table>';
+            for(let i in Bindings.expressions){
+                //let type = (i.e.nodeType === Node.TEXT_NODE) ?'textNode':'elementNode';
+                h += '   <tr>';
+                h += '       <td>'+i+'</td>';
+                let hh = '';
+                Bindings.expressions[i].elements.forEach(b=>{
+                    hh += '<span>';
+                    hh += (b.nodeType ===  Node.TEXT_NODE) ?'textNode':elementNode.tagName;
                     hh += '</span>';
                 })
                 h += '       <td>'+hh+'</td>';
@@ -138,7 +163,7 @@ const Debug = {
             h += '<div id="ltd-tab-events">';
             h += '  <table>';
             Bindings.events.forEach( (v,e)=>{
-                let type = (e.nodeType === Node.TEXT_NODE) ?'textNode':'elementNode';
+                let type = (e.nodeType === Node.TEXT_NODE) ?'textNode':elementNode.tagName;
                 h +='   <tr>';
                 h +='       <td>'+type+'</td>';
                 h +='       <td>';
@@ -161,7 +186,7 @@ const Debug = {
             h += '  <table>';
             Bindings.iterators.forEach( (v,e)=>{
                 h +='   <tr>';
-                h +='       <td>'+'elementNode'+'</td>';
+                h +='       <td>'+elementNode.tagName+'</td>';
                 h +='       <td>';
                 v.forEach(b=>{
                     h += '     <span>'+b.keypath+'</span>';

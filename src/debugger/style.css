@@ -2,13 +2,14 @@
 * @Author: colxi
 * @Date:   2018-08-14 19:51:28
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-24 11:36:09
+* @Last Modified time: 2018-09-07 18:09:24
 */
 
 :host{
     --color-light-gray: #cbcbcb;
     --color-light-blue: #03A9F4;
     --color-light-red: #ff5353;
+    --color-light-green: #4fb94f;
     --color-dark-yellow: #cccc00;
 }
 
@@ -132,6 +133,7 @@ table tr:nth-child(even) {
 #ltd-tab-viewport table td:nth-child(2) {
     width: 100%;
     padding-left:25px;
+    margin-right: 5px;
 }
 
 
@@ -142,14 +144,21 @@ table tr:nth-child(even) {
     color: var(--color-light-red);
 }
 #ltd-tab-placeholders table td:nth-child(2) span{
-    color: var(--color-light-blue);
-    margin-right: 5px;
+    color: var(--color-light-green);
 }
 #ltd-tab-events table td:nth-child(2) span{
     color: var(--color-dark-yellow);
-    margin-right: 5px;
 }
 #ltd-tab-events table td:first-child{
     color: var(--color-light-blue);
 }
-
+#ltd-tab-expressions table td:first-child{
+    color: var(--color-light-green);
+    width: 330px !important;
+}
+#ltd-tab-expressions table td:nth-child(2) {
+    width: initial !important;
+}
+#ltd-tab-expressions table td:nth-child(2) span{
+    color: var(--color-light-blue);
+}

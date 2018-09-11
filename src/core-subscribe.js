@@ -2,9 +2,11 @@
 * @Author: colxi
 * @Date:   2018-08-24 10:58:42
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-31 23:59:51
+* @Last Modified time: 2018-09-08 00:01:38
 */
 
+import { Config } from './core-config.js';
+import { Expression } from './core-expression.js';
 import { Keypath } from './core-keypath.js';
 import { Bindings } from './core-bindings.js';
 import { Directive } from './core-directive.js';
@@ -24,41 +26,60 @@ Subscribe.model= function( placeholder , context ){
     // if placeholder it's been previously Binded to any element(s)
     if( Bindings.placeholders.hasOwnProperty(placeholder) ){
         // iterate each binded element to the placeholder...
-        Bindings.placeholders[placeholder].forEach( element =>{
+        Bindings.placeholders[placeholder].forEach( expression =>{
+            console.log(expression)
+            Bindings.expressions[expression].elements.forEach( element=>{
+                // *************************************************************************
+                // ELEMENT NODE
+                // *************************************************************************
+                //
+                if( element.nodeType === Node.ELEMENT_NODE && element.hasAttributes() ){
+                    // Is an element attribute(s)
+                    // retrieve the element attributes with bindings
+                    let bindedAttributes = Bindings.elements.get(element);
+                    // iterate all binded attributes
+                    for(let attribute in bindedAttributes){
+                        if( !bindedAttributes.hasOwnProperty(attribute) ) continue;
+                        //
+                        // if is a Directive...
+                        if( Directive.isDirectiveName( attribute ) && Directive.exist( attribute )){
+                            const directive = Directive.nameUnpack(attribute);
 
-            // *************************************************************************
-            // ELEMENT NODE
-            // *************************************************************************
-            //
-            if( element.nodeType === Node.ELEMENT_NODE && element.hasAttributes() ){
-                // Is an element attribute(s)
-                // retrieve the element attributes with bindings
-                let bindedAttributes = Bindings.elements.get(element);
-                // iterate all binded attributes
-                for(let attribute in bindedAttributes){
-                    if( !bindedAttributes.hasOwnProperty(attribute) ) continue;
-                    //
-                    // if is a Directive...
-                    if( Directive.isDirectiveName( attribute ) && Directive.exist( attribute )){
-                        const directive = Directive.nameUnpack(attribute);
-
-                        // todo :check if context ===undefined before resolving
-                        const value = Keypath.resolve( placeholder );
-                        if(Directives[directive.name].hasOwnProperty('subscribe')){
-                            Directives[directive.name].subscribe(element, placeholder, directive.arguments, value );
+                            // todo :check if context ===undefined before resolving
+                            const value = Keypath.resolve( placeholder );
+                            if(Directives[directive.name].hasOwnProperty('subscribe')){
+                                Directives[directive.name].subscribe(element, placeholder, directive.arguments, value );
+                            }
+                        }else{
+                            // is a regular attribute
+                            _DEBUG_.lightblue('Subscribe.model(): Updating placeholder in Attribute ...' , attribute+'='+bindedAttributes[attribute] );
+                            element.setAttribute( attribute,  Placeholder.populateString( bindedAttributes[attribute] ) );
                         }
-                    }else{
-                        // is a regular attribute
-                        _DEBUG_.lightblue('Subscribe.model(): Updating placeholder in Attribute ...' , attribute+'='+bindedAttributes[attribute] );
-                        element.setAttribute( attribute,  Placeholder.populateString( bindedAttributes[attribute] ) );
                     }
-                }
-            }else{
-                // if element is a textNode update it...
-                _DEBUG_.lightblue('Subscribe.model(): Updating placeholder in texNode...' , placeholder);
-                element.textContent = Placeholder.populateString( Bindings.elements.get(element) ) ;
-            }
+                }else{
+                    // if element is a textNode update it...
+                    _DEBUG_.lightblue('Subscribe.model(): Updating placeholder in texNode...' , placeholder);
+                    // generate the search regular expresion with the current placeholder
+                    let regExpExpression =  expression.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
 
+                    let search = new RegExp( Config._replacePlaceholdersExpString.replace('__PLACEHOLDER__', regExpExpression) ,'g');
+                    // find te value of the Binding placeholder, in  the provided model, and
+                    // replace every placeholder reference in the string, with it
+                    let keypaths = Bindings.expressions[expression].keypaths;
+                    console.log(keypaths)
+                    let context ={}
+                    for(let i=0;i<keypaths.length;i++){
+                        context[keypaths[i][0]]= Template.Model(keypaths[i][0])
+                    }
+                    console.log(Bindings.expressions[expression].ast)
+                    let value= Expression.evaluate(Bindings.expressions[expression].ast,context)
+
+                    element.textContent = Bindings.elements.get(element).replace( search , value );
+
+                    //element.textContent = Placeholder.populateString( Bindings.elements.get(element) ) ;
+
+                }
+            })
         });
     }
 

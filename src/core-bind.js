@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-01 00:32:16
+* @Last Modified time: 2018-09-08 00:02:58
 */
 
 /* global _DEBUG_ */
@@ -16,6 +16,7 @@ import { Placeholder } from './core-placeholder.js';
 import { Subscribe } from './core-subscribe.js';
 import { Util } from './core-util.js';
 import { Keypath } from './core-keypath.js';
+import { Expression } from './core-expression.js';
 
 
 
@@ -119,17 +120,39 @@ Bind.element = function( element ){
         // the resulting array will contain only the textnode )
         Util.getElementTextNodes( element ).forEach( textNode =>{
             // extract the placeholders from the current textNode
-            const placeholders = Placeholder.getFromString( textNode.nodeValue );
-            if( placeholders.length) _DEBUG_.binding.dark('Bind.Element(): Placeholder(s) found in textNode :', placeholders );
+            const expressions = Expression.getFromString( textNode.nodeValue );
+            if( expressions.length) _DEBUG_.binding.dark('Bind.Element(): Placeholder(s) found in textNode :', expressions );
             // iterate each found placeholder, perform the corresponding
             // bindings, and include the placeholder in the uninitialized list
-            placeholders.forEach( placeholder =>{
-                // add placeholder to the list of placeholders to initialize
-                uninitializedPlaceholders.add(placeholder);
-                // bind the textnode ( to Bindings.elements )
-                // bind the placeholder ( to Bindings.placeholders )
-                _bind_TextNode( textNode, textNode.nodeValue );
-                _bind_Placeholder(textNode, placeholder);
+            expressions.forEach( expression =>{
+                if(typeof Bindings.expressions[expression] === 'undefined' ){
+                    let ast = Expression.parse(expression)
+                    Bindings.expressions[expression] ={
+                        elements : [],
+                        keypaths: Expression.getKeypaths(ast),
+                        ast: ast
+                    };
+                }
+                Bindings.expressions[expression].elements.push( textNode );
+
+                let placeholders = Bindings.expressions[expression].keypaths;
+
+                placeholders.forEach( placeholder=>{
+
+                    placeholder=placeholder.join('.');
+                    // add placeholder to the list of placeholders to initialize
+                    uninitializedPlaceholders.add(placeholder);
+                    // bind the textnode ( to Bindings.elements )
+                    // bind the placeholder ( to Bindings.placeholders )
+                    _bind_TextNode( textNode, textNode.nodeValue );
+
+                    //_bind_Placeholder(textNode, placeholder);
+                    // if the tokenName has not been registered previously, generate an empty entry
+                    if( !Bindings.placeholders.hasOwnProperty(placeholder) ) Bindings.placeholders[placeholder] = [];
+                    // link the element with the placeholder in the Bindings registry
+                    Bindings.placeholders[placeholder].push(expression);
+
+                })
             });
         });
 

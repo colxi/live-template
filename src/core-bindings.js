@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-01 00:34:48
+* @Last Modified time: 2018-09-07 20:49:12
 */
 
 /* global _DEBUG_ */
@@ -23,6 +23,19 @@ const Bindings = {
     //      id : ¿integer?
     // }
     //
+    expressions : {
+        /*
+        "javascript-expression" : {
+            // elements containing the expresion
+            elements : [ node, node, node, node, textNode,...],
+            // jses generated abstract syntaxt tree*
+            ast : {},
+            // keypaths
+            keypaths : {}
+        },
+        ...
+        */
+    },
     placeholders : {
         /*
         "placeholder_1" :  [
