@@ -6,8 +6,9 @@
     <script src="./main.js"></script>
 </head>
 <body>
-     <div id="view" style="padding:50px;">
-        Name : {{ myApp.upperCase(myApp.name) }}<br>
+    <div id="view" style="padding:50px;">
+        Current Address : {{  myApp.address[ myApp.getCurrentAddress( myApp.currentCountry, 'test' ) ] }}<br>
+        Name : {{  myApp.upperCase( myApp.name ) }}<br>
         Cellphone : {{ myApp.phone.prefix + '-' + ( myApp.phone.number / 2 ) }} <br>
     </div>
 </body>

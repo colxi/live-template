@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-08 00:02:58
+* @Last Modified time: 2018-09-12 20:49:37
 */
 
 /* global _DEBUG_ */
@@ -114,17 +114,20 @@ Bind.element = function( element ){
     // *************************************************************************
     //
     // if hasBlockingDirective flag has not been set by any Directive,
-    // scan for children textnodes
+    // scan for children text nodes
     if( !hasBlockingDirective ){
         // get all the textNodes from the element (if element is a textNode ,
         // the resulting array will contain only the textnode )
         Util.getElementTextNodes( element ).forEach( textNode =>{
-            // extract the placeholders from the current textNode
+            // extract the expressions from the current textNode, and continue
+            // to next textNode if nothing is found in current
             const expressions = Expression.getFromString( textNode.nodeValue );
-            if( expressions.length) _DEBUG_.binding.dark('Bind.Element(): Placeholder(s) found in textNode :', expressions );
-            // iterate each found placeholder, perform the corresponding
-            // bindings, and include the placeholder in the uninitialized list
+            if( !expressions.length ) return false;
+            //
+            _DEBUG_.binding.dark('Bind.Element(): Expressions(s) found in textNode :', expressions );
+            // iterate each found expression...
             expressions.forEach( expression =>{
+                // if expression  was not binded previously, generate an entry
                 if(typeof Bindings.expressions[expression] === 'undefined' ){
                     let ast = Expression.parse(expression)
                     Bindings.expressions[expression] ={
@@ -133,7 +136,9 @@ Bind.element = function( element ){
                         ast: ast
                     };
                 }
+                // bind current element to the expression binding entry
                 Bindings.expressions[expression].elements.push( textNode );
+
 
                 let placeholders = Bindings.expressions[expression].keypaths;
 
@@ -212,7 +217,7 @@ const _bind_Attribute = function( element, attribute, value){
 };
 
 const _bind_Placeholder = function( element , placeholder ){
-    _DEBUG_.binding.darker('Binding PLACEHOLDER to element :', placeholder +" ->", element.tagName || 'TEXT_NODE');
+    _DEBUG_.binding.darker('Binding PLACEHOLDER to element :', placeholder +' ->', element.tagName || 'TEXT_NODE');
 
     // if the tokenName has not been registered previously, generate an empty entry
     if( !Bindings.placeholders.hasOwnProperty(placeholder) ) Bindings.placeholders[placeholder] = [];

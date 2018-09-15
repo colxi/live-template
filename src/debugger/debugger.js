@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 12:50:51
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-07 23:47:58
+* @Last Modified time: 2018-09-15 13:59:28
 */
 import { Bindings } from './../core-bindings.js';
 
