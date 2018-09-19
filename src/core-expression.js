@@ -2,15 +2,17 @@
 * @Author: colxi
 * @Date:   2018-09-02 14:51:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-15 14:37:23
+* @Last Modified time: 2018-09-18 15:51:53
 */
 
 import { Config } from './core-config.js';
+import { Bindings } from './core-bindings.js';
+
 import './lib/jsep.js';
+
 
 const jsep = window.jsep;
 delete window.jsep;
-
 
 
 
@@ -18,20 +20,50 @@ const Expression = {};
 
 Expression.parse = jsep;
 
-Expression.getFromString = function(string){
+Expression.removeDelimiters = function(expression){
+    expression = expression.trim();
+    expression = expression.slice( Config.placeholderDelimitiers[0].length, ( 0-Config.placeholderDelimitiers[1].length ) );
+    return expression.trim();
+};
+
+Expression.getFromString = function(string = ''){
     // extract all placeholders from string
     let placeholders = string.match( Config._getPlaceholdersExp ) || [];
     // remove duplicates!
     placeholders = Array.from( new Set(placeholders) );
     // remove delimiters (it trims the resulting values too)
-    placeholders = placeholders.map( p =>{
-        p = p.slice( Config.placeholderDelimitiers[0].length, ( 0-Config.placeholderDelimitiers[1].length ) );
-        return p.trim();
-    } );
+    placeholders = placeholders.map( p => Expression.removeDelimiters(p) );
     // remove empty strings
     placeholders = placeholders.filter( p => p.length ? true : false );
 
     return placeholders;
+};
+
+Expression.getIdentifiersContext = function( expression ){
+    const identifers  = Bindings.expressions[expression].identifiers;
+    const contextList = {};
+    let contextName   = '';
+    for(let i=0; i<identifers.length; i++){
+        contextName = identifers[i][0];
+        contextList[contextName]= Template.Model(contextName);
+    }
+    return contextList;
+};
+
+Expression.populateString = function( string = ''){
+    // iterate each expression
+    Expression.getFromString( string ).forEach( expression =>{
+        const identifiersContext = Expression.getIdentifiersContext( expression );
+        const expressionValue = Expression.evaluate(Bindings.expressions[expression].ast,identifiersContext);
+
+        // generate the search regular expresion with the current expression
+        let search = new RegExp( Config._replacePlaceholdersExpString.replace('__PLACEHOLDER__', expression ) ,'g');
+        // find te value of the Binding placeholder, in  the provided model, and
+        // replace every expression  reference in the string, with it
+        string = string.replace( search , expressionValue );
+    });
+    // done! return parsed String
+    return string;
 };
 
 Expression.evaluate = (function(){
@@ -113,7 +145,7 @@ Expression.evaluate = (function(){
     };
 })();
 
-Expression.getKeypaths = (function(){
+Expression.getIdentifiers = (function(){
     const result = [];
     let idCounter = 0;
 

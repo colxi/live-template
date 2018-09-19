@@ -2,7 +2,7 @@
 * @Author: colxi.kl
 * @Date:   2018-05-18 03:45:24
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-06 13:26:59
+* @Last Modified time: 2018-09-18 17:07:36
 */
 /* global _DEBUG_ */
 
@@ -13,13 +13,15 @@ import { Observer } from './core-observer.js';
 import { Keypath } from './core-keypath.js';
 import { Bind } from './core-bind.js';
 import { Unbind } from './core-unbind.js';
-import { Util } from './core-util.js';
+import { DOMElement } from './core-dom-element.js';
 import { Bindings } from './core-bindings.js';
 import { Subscribe } from './core-subscribe.js';
 import { Debug } from './debugger/debugger.js';
 
 
 import { Expression } from './core-expression.js';
+
+window.Bindings= Bindings;
 
 
 Keypath.defaultContext( Observer._enumerate_() );
@@ -69,10 +71,10 @@ Template.create = function( element ){
     if(typeof element === 'string') element = document.querySelectorAll( element )[0];
 
     if(typeof element === 'undefined') element = document.documentElement;
-    else if( !(element instanceof HTMLElement) ) throw new Error('Template.bind(): Invalid input');
+    else if( !(element instanceof HTMLElement) ) throw new Error('Template.bind(): Invalid HTMLElement provided');
 
     // block if he elmntmor any of its parents is already in use by a template
-    if( Bindings.templates.has(element) || ( Util.getParents(element) ).filter( parent => Bindings.templates.has(parent) ).length ){
+    if( Bindings.templates.has(element) || ( DOMElement.getParents(element) ).filter( parent => Bindings.templates.has(parent) ).length ){
         console.log('An existing template is already using this element');
         return false;
     }

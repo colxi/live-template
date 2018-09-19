@@ -2,50 +2,11 @@
 * @Author: colxi
 * @Date:   2018-07-17 21:25:22
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-08-24 11:33:01
+* @Last Modified time: 2018-09-16 23:14:44
 */
 
 
 const Util = {
-    /**
-     * [inDOM description]
-     * @param  {[type]} el [description]
-     * @return {[type]}    [description]
-     */
-    DOMContains( el ) {
-        if( !el ) return false;
-        while ( el = el.parentNode ) if ( el === document ) return true;
-        return false;
-    },
-
-    getParents ( el ) {
-        if( !el ) return false;
-        let p=[];
-        while ( el = el.parentNode ) p.push(el)
-        return p;
-    },
-    /**
-     * [getElementTextNodes description]
-     * @param  {[type]} element [description]
-     * @return {[type]}         [description]
-     */
-    getElementTextNodes : function(element){
-
-        //
-        let textNodes = [];
-        // if element is a TextNode return itself inside the array
-        if( element.nodeType === Node.TEXT_NODE ) textNodes.push( element );
-        else{
-            // is element is a Script or Style return empty array (don't analyze them)
-            if( element.tagName === 'SCRIPT' || element.tagName === 'STYLE') return textNodes;
-            // else... insert all textnodes inside the array
-            element.childNodes.forEach( childNode=>{
-                if( childNode.nodeType === Node.TEXT_NODE ) textNodes.push( childNode );
-            });
-        }
-        return textNodes;
-    },
-
     /**
      * [stringHasSpaces description]
      * @param  {[type]} string [description]

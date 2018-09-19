@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-07-15 23:07:07
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-12 20:49:37
+* @Last Modified time: 2018-09-18 17:01:44
 */
 
 /* global _DEBUG_ */
@@ -17,6 +17,7 @@ import { Subscribe } from './core-subscribe.js';
 import { Util } from './core-util.js';
 import { Keypath } from './core-keypath.js';
 import { Expression } from './core-expression.js';
+import { DOMElement } from './core-dom-element.js';
 
 
 
@@ -92,18 +93,23 @@ Bind.element = function( element ){
 
             // get an array with all the placeholders declared inside the
             // current attribute value
-            const placeholders = Placeholder.getFromString( attribute.value );
-            if( placeholders.length) _DEBUG_.binding.dark('Bind.Element(): Placeholder(s) found in attribute :',  attribute.name, '=','"'+attribute.value+'"' );
-
+            const expressions = Expression.getFromString( attribute.value );
+            if( expressions.length) _DEBUG_.binding.dark('Bind.Element(): Expression(s) found in attribute :',  attribute.name, '=','"'+attribute.value+'"' );
             // iterate each found placeholder, perform the corresponding
             // bindings, and include the placeholder in the uninitialized list
-            placeholders.forEach( placeholder => {
-                // add placeholder to the list of placeholders to initialize
-                uninitializedPlaceholders.add(placeholder);
-                // bind the attribute ( to Bindings.elements )
-                // bind the placeholder ( to Bindings.placeholders )
-                _bind_Attribute( element , attribute.name , attribute.value );
-                _bind_Placeholder(element, placeholder);
+            expressions.forEach( expression => {
+                // bind the expression
+                _bind_Expression(expression, element);
+
+                Bindings.expressions[expression].identifiers.forEach( identifier =>{
+                    identifier = identifier.join('.');
+                    // add placeholder to the list of expressions to initialize
+                    uninitializedPlaceholders.add(identifier);
+                    // bind the attribute ( to Bindings.elements )
+                    // bind the expression ( to Bindings.placeholders )
+                    _bind_Attribute( element , attribute.name , attribute.value );
+                    _bind_Placeholder( expression, identifier );
+                });
             });
         }
     }
@@ -116,48 +122,31 @@ Bind.element = function( element ){
     // if hasBlockingDirective flag has not been set by any Directive,
     // scan for children text nodes
     if( !hasBlockingDirective ){
-        // get all the textNodes from the element (if element is a textNode ,
-        // the resulting array will contain only the textnode )
-        Util.getElementTextNodes( element ).forEach( textNode =>{
-            // extract the expressions from the current textNode, and continue
-            // to next textNode if nothing is found in current
-            const expressions = Expression.getFromString( textNode.nodeValue );
-            if( !expressions.length ) return false;
-            //
-            _DEBUG_.binding.dark('Bind.Element(): Expressions(s) found in textNode :', expressions );
-            // iterate each found expression...
-            expressions.forEach( expression =>{
-                // if expression  was not binded previously, generate an entry
-                if(typeof Bindings.expressions[expression] === 'undefined' ){
-                    let ast = Expression.parse(expression)
-                    Bindings.expressions[expression] ={
-                        elements : [],
-                        keypaths: Expression.getKeypaths(ast),
-                        ast: ast
-                    };
-                }
-                // bind current element to the expression binding entry
-                Bindings.expressions[expression].elements.push( textNode );
+        // split textNode(s) in each found expression to generate ExpressionNodes
+        // containing only a single expression each one
+        let expressionNodes =  DOMElement.spawnExpressionNodes( element );
 
+        // iterate the generated expressionNodes array
+        expressionNodes.forEach( textNode =>{
+            // remove delimiters from  expression
+            const expression =  Expression.removeDelimiters( textNode.nodeValue );
+            // bind the expression
+            _bind_Expression(expression, textNode);
 
-                let placeholders = Bindings.expressions[expression].keypaths;
+            // iterate each found identifier in expression...
+            Bindings.expressions[expression].identifiers.forEach( identifier =>{
+                //
+                identifier = identifier.join('.');
+                // add placeholder to the list of placeholders to initialize
+                uninitializedPlaceholders.add(identifier);
+                // bind the textnode ( to Bindings.elements )
+                _bind_TextNode( textNode, textNode.nodeValue );
 
-                placeholders.forEach( placeholder=>{
+                // if the tokenName has not been registered previously, generate an empty entry
+                if( !Bindings.placeholders.hasOwnProperty(identifier) ) Bindings.placeholders[identifier] = [];
+                // link the element with the placeholder in the Bindings registry
+                Bindings.placeholders[identifier].push(expression);
 
-                    placeholder=placeholder.join('.');
-                    // add placeholder to the list of placeholders to initialize
-                    uninitializedPlaceholders.add(placeholder);
-                    // bind the textnode ( to Bindings.elements )
-                    // bind the placeholder ( to Bindings.placeholders )
-                    _bind_TextNode( textNode, textNode.nodeValue );
-
-                    //_bind_Placeholder(textNode, placeholder);
-                    // if the tokenName has not been registered previously, generate an empty entry
-                    if( !Bindings.placeholders.hasOwnProperty(placeholder) ) Bindings.placeholders[placeholder] = [];
-                    // link the element with the placeholder in the Bindings registry
-                    Bindings.placeholders[placeholder].push(expression);
-
-                })
             });
         });
 
@@ -194,6 +183,24 @@ Bind.element = function( element ){
     return true;
 };
 
+const _bind_Expression= function(expression, element){
+    // if expression  was not binded previously, generate a new entry
+    if( !Bindings.expressions.hasOwnProperty(expression) ){
+        // generate Abstract Syntax tree of the expression, and extract
+        // expression involved keypaths (identifiers)
+        const ast           = Expression.parse(expression);
+        const identifiers   = Expression.getIdentifiers(ast);
+        const elements      = [];
+        Bindings.expressions[expression] ={
+            elements,
+            identifiers,
+            ast
+        };
+    }
+    // bind current element to the expression binding entry
+    Bindings.expressions[expression].elements.push( element );
+
+};
 
 const _bind_TextNode = function( textNode , value ){
     Bindings.elements.set( textNode, value );
@@ -207,7 +214,7 @@ const _bind_Attribute = function( element, attribute, value){
         // Bindings Element index with the new attribute and its Template String
         const bindedAttributes =  Bindings.elements.get(element);
         bindedAttributes[ attribute ] = value;
-        Bindings.elements.set(element,bindedAttributes );
+        Bindings.elements.set(element , bindedAttributes );
     }else{
         // if it's not yet in the Bindings Element index, add
         // a new entry with the attribute name and value

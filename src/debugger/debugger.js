@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 12:50:51
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-15 13:59:28
+* @Last Modified time: 2018-09-18 19:41:17
 */
 import { Bindings } from './../core-bindings.js';
 
@@ -99,7 +99,7 @@ const Debug = {
             h += '<div id="ltd-tab-elements">';
             h += '  <table>';
             Bindings.elements.forEach( (v,e)=>{
-                let type = (e.nodeType === Node.TEXT_NODE) ?'textNode':'elementNode';
+                let type = (e.nodeType === Node.TEXT_NODE) ?'textNode':e.tagName.toLowerCase();
                 h +='   <tr>';
                 h +='       <td onmouseover="Debug.select(this)">'+type+'</td>';
                 h +='       <td>'+JSON.stringify(v)+'</td>';
@@ -127,7 +127,7 @@ const Debug = {
                     hh += '<span>';
                     hh += b;
                     hh += '</span>';
-                })
+                });
                 h += '       <td>'+hh+'</td>';
                 h += '   </tr>';
             };
@@ -147,8 +147,8 @@ const Debug = {
                 let hh = '';
                 Bindings.expressions[i].elements.forEach(b=>{
                     hh += '<span>';
-                    hh += (b.nodeType ===  Node.TEXT_NODE) ?'textNode':elementNode.tagName;
-                    hh += '</span>';
+                    hh += (b.nodeType ===  Node.TEXT_NODE) ?'textNode':b.tagName.toLowerCase();
+                    hh += '</span> ';
                 })
                 h += '       <td>'+hh+'</td>';
                 h += '   </tr>';

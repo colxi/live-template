@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 19:51:28
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-07 18:09:24
+* @Last Modified time: 2018-09-18 19:40:30
 */
 
 :host{
@@ -10,6 +10,7 @@
     --color-light-blue: #03A9F4;
     --color-light-red: #ff5353;
     --color-light-green: #4fb94f;
+    --color-lighter-green: #79e179;
     --color-dark-yellow: #cccc00;
 }
 
@@ -145,7 +146,22 @@ table tr:nth-child(even) {
 }
 #ltd-tab-placeholders table td:nth-child(2) span{
     color: var(--color-light-green);
+    margin-top:2px;
+    margin-bottom:2px;
+    display:block;
 }
+#ltd-tab-placeholders table td:nth-child(2) span:hover{
+    color: var(--color-lighter-green);
+}
+
+#ltd-tab-placeholders table td:nth-child(2) span::before{
+    content: '➤';
+    padding: 4px;
+    margin: 2px 4px;
+    font-size: 8px;
+}
+
+
 #ltd-tab-events table td:nth-child(2) span{
     color: var(--color-dark-yellow);
 }
@@ -162,3 +178,4 @@ table tr:nth-child(even) {
 #ltd-tab-expressions table td:nth-child(2) span{
     color: var(--color-light-blue);
 }
+
