@@ -1,0 +1,18 @@
+- Binding process: NORMALIZE EXPRESZION before regiater it, removing hitespaces.nThis will prevent situations like
+{{ myApp.test(a,b) }}
+and
+{{ myApp.test(a, b)}}
+to register two diferent expressions
+
+- Binding process:  replace unitializedIdemtifiers, with uninitialized Expressions.mThis will prevent unnecessary and redundant calls to Dom updates, in cases like
+{{ myApp.test( myApp.name, myApp.ecomdName ) }}
+where DOM UPDATES would be triggered twice, one for each idemtifier (even if the idemtifiers are part of the same expression).
++ myApp.name
++ myApp.ecomdName
+
+- Keep track of all  keys of the identifiers keypaths, to trigger updates when a member of a binded keypath is modified
+eg:
+myApp.myItems[4]=undefined
+would not update:
+<span>{{myApp.myItems[4].name }}</span>
+

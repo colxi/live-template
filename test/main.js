@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 22:58:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-18 16:47:49
+* @Last Modified time: 2018-09-19 00:45:43
 */
 
 /* global Template */
@@ -14,7 +14,7 @@ window.onload = ()=>{
     // create Model
     window.myApp = new Template.Model('myApp', {
         upperCase : function(s){ return String(s).toUpperCase() },
-        name : 'testname',
+        name : 'emma',
         phone:{
             prefix : '1234',
             number : '5678'

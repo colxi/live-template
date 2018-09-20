@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-09-02 14:51:05
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-18 15:51:53
+* @Last Modified time: 2018-09-18 23:22:57
 */
 
 import { Config } from './core-config.js';
@@ -48,6 +48,23 @@ Expression.getIdentifiersContext = function( expression ){
         contextList[contextName]= Template.Model(contextName);
     }
     return contextList;
+};
+
+Expression.normalize= function(expression){
+    let inQuote     = false;
+    let normalized  = '';
+    let quoteType   = '';
+    for(let i=0; i<expression.length;i++){
+        if(  expression[i] === '"' || expression[i]=== '\''){
+            if(!inQuote){
+                inQuote=true;
+                quoteType=expression[i];
+            }else if(expression[i] === quoteType) inQuote= false;
+        }
+        if(inQuote) normalized += expression[i];
+        else if( expression[i] !== ' ') normalized += expression[i];
+    }
+    return normalized;
 };
 
 Expression.populateString = function( string = ''){
@@ -146,7 +163,7 @@ Expression.evaluate = (function(){
 })();
 
 Expression.getIdentifiers = (function(){
-    const result = [];
+    let result = [];
     let idCounter = 0;
 
     function newId(){ return ++idCounter }
@@ -167,7 +184,6 @@ Expression.getIdentifiers = (function(){
                 analyzeNode( node.property.right, newId());
             }
             else if(node.property.type === 'CallExpression'){
-                console.log(node.property);
                 analyzeNode(node.property.callee, newId() );
                 for(let i=node.property.arguments.length-1; i>=0; i--){
                     if(node.property.arguments[i].type !== 'Literal') analyzeNode(node.property.arguments[i], newId() );
@@ -199,14 +215,14 @@ Expression.getIdentifiers = (function(){
     }
 
 
-    return function getKeypaths(expression) {
+    return function(expression) {
         let ast;
         if(typeof expression === 'string') ast = Expression.parse(expression);
         else ast = expression;
 
         if (!ast) return false;
 
-        result.length = 0;
+        result = [];
         idCounter=0;
         analyzeNode(ast, idCounter );
 
@@ -216,8 +232,6 @@ Expression.getIdentifiers = (function(){
                 analyzeNode(node , idCounter );
             }
         }
-
-        console.table(result)
         return result;
     };
 })()

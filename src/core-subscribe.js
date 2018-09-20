@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-24 10:58:42
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-18 16:58:15
+* @Last Modified time: 2018-09-19 00:09:24
 */
 
 import { Config } from './core-config.js';
@@ -19,13 +19,13 @@ import { Placeholder } from './core-placeholder.js';
 
 const Subscribe= {};
 
-Subscribe.model= function( placeholder , context ){
+Subscribe.model= function( placeholder ){
     //if(typeof context==='undefined')alert()
     console.log('Subscribe.model(): ', placeholder);
-console.log(Bindings.placeholders)
+
+
     // if placeholder it's been previously Binded to any element(s)
     if( Bindings.placeholders.hasOwnProperty(placeholder) ){
-        console.log('identfer binded')
 
         // iterate each binded element to the placeholder...
         Bindings.placeholders[placeholder].forEach( expression =>{
@@ -35,7 +35,6 @@ console.log(Bindings.placeholders)
                 // *************************************************************************
                 //
                 if( element.nodeType === Node.ELEMENT_NODE && element.hasAttributes() ){
-                    console.warn('about to update a attribuye')
                     // Is an element attribute(s)
                     // retrieve the element attributes with bindings
                     let bindedAttributes = Bindings.elements.get(element);
@@ -43,8 +42,11 @@ console.log(Bindings.placeholders)
                     for(let attribute in bindedAttributes){
                         if( !bindedAttributes.hasOwnProperty(attribute) ) continue;
                         //
-                        // if is a Directive...
                         if( Directive.isDirectiveName( attribute ) && Directive.exist( attribute )){
+                            // *************************************************
+                            // DIRECTIVE
+                            // *************************************************
+                            //
                             const directive = Directive.nameUnpack(attribute);
 
                             // todo :check if context ===undefined before resolving
@@ -53,7 +55,10 @@ console.log(Bindings.placeholders)
                                 Directives[directive.name].subscribe(element, placeholder, directive.arguments, value );
                             }
                         }else{
-                            // is a regular attribute
+                            // *************************************************
+                            // REGULAR ATTRIBUTE
+                            // *************************************************
+                            //
                             _DEBUG_.lightblue('Subscribe.model(): Updating placeholder in Attribute ...' , attribute+'='+bindedAttributes[attribute] );
                             element.setAttribute( attribute, Expression.populateString( bindedAttributes[attribute] ) );
                         }
@@ -100,12 +105,14 @@ console.log(Bindings.placeholders)
 
 
 Subscribe.dom= function( changes ){
-    console.log( 'Subscribe.dom():', 'Element('+ changes.action+'ed)'       , changes.keyPath )
+    console.log( 'Model updated: Property '+ changes.action+'ed)'       , changes.keyPath )
     switch(changes.action){
         case 'add':
         case 'update': {
             //debugger;
-            Subscribe.model( changes.keyPath, changes.object)
+            if( Bindings.placeholders.hasOwnProperty(changes.keyPath) ){
+                Subscribe.model( changes.keyPath, changes.object)
+            }
             break;
         }
         default:{}

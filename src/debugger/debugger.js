@@ -2,7 +2,7 @@
 * @Author: colxi
 * @Date:   2018-08-14 12:50:51
 * @Last Modified by:   colxi
-* @Last Modified time: 2018-09-18 19:41:17
+* @Last Modified time: 2018-09-19 19:11:29
 */
 import { Bindings } from './../core-bindings.js';
 
@@ -11,36 +11,161 @@ let currentTab ='expressions';
 const debugerUI =`
     <link rel="stylesheet" href="../src/debugger/style.css" id="ltd-styles" />
     <div class="ltd-menu">
-        <span onclick="Debug.garbageCollector()" title="Garbarge Collector" class="ltd-menu-icon">&#x1F5D1;</span>
-        <span onclick="console.clear()" title="Clean console" class="ltd-menu-icon">&#x1f6c7;</span>
-        <span onclick="Debug.renderInConsole()" title="Dump in Console" class="ltd-menu-icon">&#10149;</span>
-        <!--
-        <span onclick="Debug.updateDebugerUI()" title="Refresh Tab" class="ltd-menu-icon">&#x21bb;</span>
-        -->
-        <span onclick="Template.create('#view')" title="Create Template" class="ltd-menu-icon ltd-menu-bind">&#8766;</span>
-        <span onclick="Template.destroy('#view')" title="Destroy Template" class="ltd-menu-icon ltd-menu-unbind">&#8660;</span>
-        <span onclick="Debug.loadTab('expressions')" id="ltd-menu-expressions" active>Expressions</span>
-        <span onclick="Debug.loadTab('placeholders')" id="ltd-menu-placeholders" >Placeholders</span>
-        <span onclick="Debug.loadTab('elements')" id="ltd-menu-elements">Elements</span>
-        <!--
-        <span onclick="Debug.loadTab('events')" id="ltd-menu-events">Events</span>
-        <span onclick="Debug.loadTab('iterators')" id="ltd-menu-iterators">Iterators</span>
-        <span onclick="Debug.loadTab('log')" id="ltd-menu-log">Log</span>
-        -->
+        <span class="menu-shortcuts">
+            <span class="menu-element ltd-menu-icon" onclick="Debug.garbageCollector()" title="Garbarge Collector" >&#x1F5D1;</span>
+            <span class="menu-element ltd-menu-icon" onclick="console.clear()" title="Clean console" >&#x1f6c7;</span>
+            <span class="menu-element ltd-menu-icon" onclick="Debug.renderInConsole()" title="Dump in Console" >&#10149;</span>
+            <!--
+            <span class="menu-element ltd-menu-icon" onclick="Debug.updateDebugerUI()" title="Refresh Tab" >&#x21bb;</span>
+            -->
+            <span class="menu-element ltd-menu-icon ltd-menu-bind" onclick="Template.create('#view')" title="Create Template" >&#8766;</span>
+            <span class="menu-element ltd-menu-icon ltd-menu-unbind"  onclick="Template.destroy('#view')" title="Destroy Template" >&#8660;</span>
+        </span>
+        <span class="menu-tabs">
+            <span class="menu-element" onclick="Debug.loadTab('expressions')" id="ltd-menu-expressions" active>Expressions</span>
+            <span class="menu-element" onclick="Debug.loadTab('placeholders')" id="ltd-menu-placeholders" >Identifiers</span>
+            <span class="menu-element" onclick="Debug.loadTab('elements')" id="ltd-menu-elements">Elements</span>
+            <span class="menu-element" onclick="Debug.loadTab('events')" id="ltd-menu-events">Events</span>
+            <span class="menu-element" onclick="Debug.loadTab('iterators')" id="ltd-menu-iterators">Iterators</span>
+            <span class="menu-element" onclick="Debug.loadTab('log')" id="ltd-menu-log">Log</span>
+        </span>
+        <span id="menu-tabs-compressed">
+            <span id="menu-tabs-dialog-button">»</span>
+            <span id="menu-tabs-compressed-dialog"></span>
+            <div id="menu-tabs-compressed-dialog-background"></div>
+        </span>
+        <span id="menu-fold">▼</span>
     </div>
     <div id ="ltd-tab-viewport"></div>
 `;
 
+const debuggerResizerCss = `
+    left: 0px;
+    right: 0px;
+    top: 0;
+    background: transparent;
+    height: 5px;
+    cursor: ns-resize;
+    position: relative;
+    border-bottom:2px solid #01ea01
+`;
 
-let debuggerContainer        = document.createElement('div');
-debuggerContainer.id         = 'ltd-container';
+const debuggerContainerCss = `
+    position: fixed;
+    bottom: 0px;
+    left: 0px;
+    width: 100%;
+    height: 200px;
+    transition: 0s;
+`;
+
+const debuggerContainer = document.createElement('div');
+debuggerContainer.setAttribute('color','red');
+debuggerContainer.setAttribute('color','red');
+debuggerContainer.id  = 'ltd-container';
+debuggerContainer.style  = debuggerContainerCss;
+debuggerContainer.innerHTML += '<div id="ltd-resizer" style="'+debuggerResizerCss+'"></div>';
+debuggerContainer.innerHTML += '<div id="ltd-viewport"></div>';
 document.body.appendChild(debuggerContainer);
 
-let debugComponent = debuggerContainer.attachShadow({mode: 'open'});
-//debugComponent = document.getElementById('ltd-container').shadowRoot;
+const debugComponent = document.getElementById('ltd-viewport').attachShadow({mode: 'open'});
 debugComponent.innerHTML  = debugerUI;
 
+document.documentElement.style='height:100%;'; // html elememt
+document.body.style='height:100%; margin: 0px;'; // body elememt
+
+
+
+
+ var isResizing = false;
+
+var handle = document.getElementById("ltd-resizer");
+var container = debuggerContainer.parentElement;
+
+handle.onmousedown = function(e) {
+    // remove transition effect, and set panel as open
+    debuggerContainer.style.transition='0s';
+    debuggerPanelStatus=1;
+    menu.querySelectorAll('#menu-fold')[0].innerHTML='▼ ';
+
+
+    isResizing = true;
+};
+
+document.onmousemove = function(e) {
+    if (!isResizing) return;
+    let cursorY= (e.clientY < -6) ? -6 : e.clientY ;
+    var offsetTop = container.clientHeight - (cursorY - container.offsetTop);
+    debuggerContainer.style.height = offsetTop + "px";
+};
+
+document.onmouseup = function(e){ isResizing = false; }
+
+
+const menu = debugComponent.querySelectorAll('.ltd-menu')[0];
+menu.querySelectorAll('#menu-tabs-compressed-dialog-background')[0].onclick= function(e){
+    menu.querySelectorAll('#menu-tabs-compressed-dialog-background')[0].style.display='none';
+    menu.querySelectorAll('#menu-tabs-compressed-dialog')[0].style.display='none';
+};
+
+
+menu.querySelectorAll('#menu-tabs-dialog-button')[0].onclick= function(e){
+
+    const menuTabsCompressecDialog = menu.querySelectorAll('#menu-tabs-compressed-dialog')[0];
+
+    var style = window.getComputedStyle(menuTabsCompressecDialog);
+    if(style.display === 'none'){
+        menuTabsCompressecDialog.style.display='block';
+        menu.querySelectorAll('#menu-tabs-compressed-dialog-background')[0].style.display='block';
+    }
+
+}
+
+
+let debuggerPanelStatus=1;
+var debuggerPanelLastHeight = 0;
+
+menu.querySelectorAll('#menu-fold')[0].onclick= function(e){
+    debuggerContainer.style.transition='.5s';
+    if(debuggerPanelStatus===1){
+        menu.querySelectorAll('#menu-fold')[0].innerHTML='▲ ';
+        debuggerPanelLastHeight = debuggerContainer.offsetHeight;
+        debuggerContainer.style.height='41px'
+        debuggerPanelStatus=0;
+    }else{
+        menu.querySelectorAll('#menu-fold')[0].innerHTML='▼ ';
+        debuggerContainer.style.height= debuggerPanelLastHeight+'px';
+        debuggerPanelStatus=1;
+    }
+}
+
+
+setTimeout( e=> Debug.adjustMenu() ,1000);
+window.onresize = e=> Debug.adjustMenu();
+
 const Debug = {
+    adjustMenu: function(e){
+
+        const menu = debugComponent.querySelectorAll('.ltd-menu')[0];
+        const menuTabsContainer = menu.querySelectorAll('.menu-tabs')[0];
+        const menuTabsCompressecDialog = menu.querySelectorAll('#menu-tabs-compressed-dialog')[0];
+        console.log(menuTabsCompressecDialog)
+        Array.from(menuTabsCompressecDialog.children).forEach(i=>{
+            menuTabsContainer.appendChild(i)
+        })
+
+        let width = menu.offsetWidth;
+        let shortcutsWidth=  menu.querySelectorAll('.menu-shortcuts')[0].offsetWidth;
+        let availableWidth = width - shortcutsWidth - 120;
+
+
+        let menuTabs = Array.from( menuTabsContainer.children );
+        menuTabs.forEach(i=>{
+            availableWidth= availableWidth - i.offsetWidth;
+            if( availableWidth < 0)  menuTabsCompressecDialog.appendChild(i);
+            //else i.style.display = 'inline-block';
+        });
+    },
     select: function(el){
         let target= null;
         if(el.nodeType===Node.ELEMENT_NODE) target= el;
@@ -74,9 +199,14 @@ const Debug = {
         t = t || currentTab;
         currentTab = t;
         let menu = debugComponent.querySelectorAll('.ltd-menu')[0];
-        Array.from(menu.children).forEach(i=> i.removeAttribute('active') );
+        let menuItes =  menu.querySelectorAll('.menu-element');
+
+        Array.from(menuItes).forEach(i=> i.removeAttribute('active') );
         menu.querySelectorAll('#ltd-menu-'+t)[0].setAttribute('active',true);
         Debug.tabs[t]();
+
+          menu.querySelectorAll('#menu-tabs-compressed-dialog-background')[0].style.display='none';
+        menu.querySelectorAll('#menu-tabs-compressed-dialog')[0].style.display='none';
     },
 
     renderInConsole: function(){
@@ -101,8 +231,21 @@ const Debug = {
             Bindings.elements.forEach( (v,e)=>{
                 let type = (e.nodeType === Node.TEXT_NODE) ?'textNode':e.tagName.toLowerCase();
                 h +='   <tr>';
-                h +='       <td onmouseover="Debug.select(this)">'+type+'</td>';
-                h +='       <td>'+JSON.stringify(v)+'</td>';
+                h +=        '<td>';
+                h +=            '<span class="lt-type-element">'+type+'</span>';
+                h +=        '</td>';
+                h +=        '<td>';
+                if( typeof v==='string'){
+                    h +=        '<span class="lt-type-nodeValue"></span>';
+                    h +=        '<span class="lt-type-text">'+v+'</span>';
+                }else{
+                    Object.keys(v).forEach(function(key) {
+                        h +=    '<span class="lt-type-attribute">'+key+' =</span>';
+                        h +=    '<span class="lt-type-text">'+v[key]+'</span>';
+                        h +=    '<br>';
+                    });
+                }
+                h +=        '</td>';
                 h +='   </tr>';
             });
             h += '  </table>';
@@ -120,17 +263,19 @@ const Debug = {
             h += '   <table>';
             for(let i in Bindings.placeholders){
                 //let type = (i.e.nodeType === Node.TEXT_NODE) ?'textNode':'elementNode';
-                h += '   <tr>';
-                h += '       <td>'+i+'</td>';
+                h += '<tr>';
+                h +=    '<td>';
+                h+=         '<span class="lt-type-identifier">'+i+'</span>';
+                h+=     '</td>';
                 let hh = '';
                 Bindings.placeholders[i].forEach(b=>{
-                    hh += '<span>';
+                    hh += '<span class="lt-type-expression">';
                     hh += b;
-                    hh += '</span>';
+                    hh += '</span><br>';
                 });
                 h += '       <td>'+hh+'</td>';
                 h += '   </tr>';
-            };
+            }
             h +='   </table>';
             h +='</div>';
             debugComponent.getElementById('ltd-tab-viewport').innerHTML = h;
@@ -141,18 +286,17 @@ const Debug = {
             h += '<div id="ltd-tab-expressions">';
             h += '   <table>';
             for(let i in Bindings.expressions){
-                //let type = (i.e.nodeType === Node.TEXT_NODE) ?'textNode':'elementNode';
                 h += '   <tr>';
-                h += '       <td>'+i+'</td>';
+                h += '       <td><span class="lt-type-expression">'+i+'</span></td>';
                 let hh = '';
                 Bindings.expressions[i].elements.forEach(b=>{
-                    hh += '<span>';
+                    hh += '<span class="lt-type-element">';
                     hh += (b.nodeType ===  Node.TEXT_NODE) ?'textNode':b.tagName.toLowerCase();
-                    hh += '</span> ';
-                })
+                    hh += '</span>';
+                });
                 h += '       <td>'+hh+'</td>';
                 h += '   </tr>';
-            };
+            }
             h +='   </table>';
             h +='</div>';
             debugComponent.getElementById('ltd-tab-viewport').innerHTML = h;

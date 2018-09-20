@@ -7,10 +7,10 @@
 </head>
 <body>
     <div id="view" style="padding:50px;">
-        Current Address : <span style="color:{{myApp.color}}">{{  myApp.upperCase( myApp.address[ myApp.getCurrentAddress( myApp.currentCountry) ] ) }}</span><br>
+        Current Address : <span class="{{myApp.name}}" style="color:{{myApp.color}}">{{  myApp.upperCase( myApp.address[ myApp.getCurrentAddress( myApp.currentCountry) ] ) }}</span><br>
         Name : <span style="color:{{myApp.color}}">{{  myApp.upperCase( myApp.name ) }}</span><br>
         Cellphone : {{ myApp.phone.prefix + '-' + ( myApp.phone.number / 2 ) }} <br>
+        Color : <input lt-value="myApp.name">
     </div>
 </body>
-
 </html>
